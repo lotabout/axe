@@ -1,4 +1,4 @@
-#lang racket/base
+#lang racket
 
 (module+ test
   (require rackunit))
@@ -27,7 +27,8 @@
 ;; Code here
 
 (require "threading.rkt")
-(provide (all-from-out "threading.rkt"))
+(provide (all-from-out racket)
+         (all-from-out "threading.rkt"))
 
 (module+ test
   ;; Tests to be run with raco test

@@ -1,6 +1,5 @@
 #lang scribble/manual
-@require[@for-label[axe
-                    racket/base]]
+@require[@for-label[axe]]
 
 @title{axe}
 @author{molly}
