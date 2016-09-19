@@ -1,7 +1,8 @@
 #lang racket/base
 
 (provide (rename-out [/-read read]
-                     [/-read-syntax read-syntax]))
+                     [/-read-syntax read-syntax])
+         make-/-readtable)
 
 (module+ test
   (require rackunit))
