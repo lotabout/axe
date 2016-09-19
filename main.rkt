@@ -1,4 +1,4 @@
-#lang racket
+#lang axe/base
 
 (module+ test
   (require rackunit))
@@ -26,7 +26,10 @@
 
 ;; Code here
 
-(require "threading.rkt")
+
+(require (except-in racket _) ; `_` will be used in axe/threading
+         "threading.rkt")
+
 (provide (all-from-out racket)
          (all-from-out "threading.rkt"))
 

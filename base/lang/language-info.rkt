@@ -6,5 +6,5 @@
   (lambda (key default)
     (case key
       [(configure-runtime)
-       '(#[axe/lang/runtime-config configure #f])]
+       '(#[axe/base/lang/runtime-config configure #f])]
       [else default])))
