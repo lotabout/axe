@@ -1,6 +1,7 @@
 #lang scribble/manual
 @require[racket/sandbox
-         scribble/eval]
+         scribble/eval
+         @for-label[axe]]
 
 @(define axe-eval
    (make-eval-factory '(axe)))
@@ -14,7 +15,6 @@ Some handy tools that you might need. Just like the axe in your hand. @hyperlink
 @[table-of-contents]
 
 @defmodulelang[axe]
-
 @;====================================================================
 @section{Reader Extension}
 
@@ -68,6 +68,8 @@ enclose it with @tt{#/} and @tt{/}. Now try it!
 @;--------------------------------------------------------------------
 @subsection[#:tag "threading"]{Threading Macros}
 
+@defmodule[axe/threading]
+
 @hyperlink["http://clojure.org/guides/threading_macros" "Threading macros"] are
 first introduced in clojure. It helps us to change nested function calls into
 "pipelines". For example: we are calculating some values with a complicated
@@ -111,21 +113,80 @@ You can also change the symbol for place holder to any identifier you like:
      (apply + %)
      (- 20 (* % 2))))
 
-@defform[(~> expr clause ...)]
+@defform[(~> expr clause ...)]{
+    Threads @emph{expr} through @emph{clause}. Insert @emph{expr} as the
+    @bold{second} item in the first @emph{clause}. @racket[(~> expr (function arg))]
+    is transformed into @racket[(~> expr (function _ arg))] and that
+    results in @racket[(function expr arg)].
 
-Threads @emph{expr} through @emph{clause}. Insert @emph{expr} as the
-@bold{second} item in the first @emph{clause}. @racket[(~> expr (function arg))]
-is transformed into @racket[(~> expr (function _ arg))] and that
-results in @racket[(function expr arg)].
+    If there are multiple clauses, thread the first clause as the second item in the
+    second clause, recursively.
+}
 
-If there are multiple clauses, thread the first clause as the second item in the
-second clause, recursively.
+@defform[(~>> expr clause ...)]{
+    Like @racket[~>] but insert @emph{expr} as the @bold{last} item in
+        @emph{clause}. So that it equals to @racket[(~>> expr (function arg _))].
+}
 
-@defform[(~>> expr clause ...)]
+@defform[(and~> expr clause ...)]{
+    Works like @racket[~>], but immediatly returns @racket[#f] if any of the
+    clause returns @racket[#f]. Like @racket[and], this is short-circuiting, so
+    the remaining steps will not be executed.
 
-Like @racket[~>] but insert @emph{expr} as the @bold{last} item in
-@emph{clause}. So that it equals to @racket[(~>> expr (function arg _))].
+    Examples:
 
+    @(examples
+      #:eval (axe-eval)
+      (and~> '(2 4 5)
+       (map add1 _)
+       (findf even? _)
+       (* 2))
+
+      (and~> '(2 4 6)
+       (map add1 _)
+       (findf even? _)
+       (* 2)))
+}
+
+@defform[(and~>> expr clause ...)]{
+    Combines the threading behavior of @racket[~>>] and the short-circuiting
+    behavior of @racket[and~>].
+}
+
+@deftogether[(@defform[(lambda~> clause ...)]
+              @defform[(λ~> clause ...)]
+             )]{
+    Handy wrapper for @racket[(λ (arg) (~> arg clause ...))].
+    @(examples
+      #:eval (axe-eval)
+      (map (λ~> add1 (* 2)) (range 5)))
+}
+
+@deftogether[(@defform[(lambda~>> clause ...)]
+              @defform[(λ~>> clause ...)])]{
+    Like @racket[lambda~>] but for @racket[~>>].
+}
+
+@deftogether[(@defform[(lambda~>* clause ...)]
+              @defform[(λ~>* clause ...)])]{
+    Equivalent to @racket[(λ args (~> args clause ...))].
+}
+
+@deftogether[(@defform[(lambda~>>* clause ...)]
+              @defform[(λ~>>* clause ...)])]{
+    Like @racket[lambda~>*] but for @racket[~>>].
+}
+
+@deftogether[(@defform[(lambda-and~> clause ...)]
+              @defform[(λ-and~> clause ...)]
+              @defform[(lambda-and~>> clause ...)]
+              @defform[(λ-and~>> clause ...)]
+              @defform[(lambda-and~>* clause ...)]
+              @defform[(λ-and~>* clause ...)]
+              @defform[(lambda-and~>>* clause ...)]
+              @defform[(λ-and~>>* clause ...)])]{
+    Like @racket[lambda~>], but for @racket[and~>].
+}
 
 The @hyperlink["https://docs.racket-lang.org/threading/index.html"
 "threading module"], and
