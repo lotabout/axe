@@ -1,5 +1,5 @@
 axe
-Copyright (c) 2016 molly
+Copyright (c) 2016 Jinzhou Zhang
 
 This package is distributed under the GNU Lesser General Public
 License (LGPL).  This means that you can link axe into proprietary

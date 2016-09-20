@@ -5,6 +5,14 @@
                      racket/list
                      syntax/parse))
 
+(provide ~> ~>> and~> and~>> _
+         lambda~> lambda~>> lambda~>* lambda~>>*
+         lambda-and~> lambda-and~>> lambda-and~>* lambda-and~>>*
+         (rename-out [lambda~> λ~>] [lambda~>> λ~>>]
+                     [lambda~>* λ~>*] [lambda~>>* λ~>>*]
+                     [lambda-and~> λ-and~>] [lambda-and~>> λ-and~>>]
+                     [lambda-and~>* λ-and~>*] [lambda-and~>>* λ-and~>>*]))
+
 ;;; An implementation for threading macro which is clojure like.
 ;;; Thanks to http://jeapostrophe.github.io/2013-05-27-stxparam-post.html
 ;;; Also check out: http://docs.racket-lang.org/threading/index.html
@@ -57,6 +65,7 @@
        (~> (syntax-parameterize ([_ (make-rename-transformer #'new-val)])
                                 (ensure-placeholder/front func))
            more ...))]))
+
 (define-syntax ~>>
   (syntax-rules ()
     [(_ val)
@@ -95,24 +104,71 @@
                     'expression '())
       #f)))
 
+;;; some wrappers over ~> and ~>>
+
+(define-syntax-rule (and~> val func ...)
+  (~> val (and _ (ensure-placeholder/front func)) ...))
+
+(define-syntax-rule (and~>> val func ...)
+  (~>> val (and _ (ensure-placeholder/end func)) ...))
+
+;;; lambda wrappers
+
+(define-syntax-rule (lambda~> . body)
+  (lambda (arg) (~> arg . body)))
+
+(define-syntax-rule (lambda~>> . body)
+  (lambda (arg) (~>> arg . body)))
+
+(define-syntax-rule (lambda~>* . body)
+  (lambda args (~> args . body)))
+
+(define-syntax-rule (lambda~>>* . body)
+  (lambda args (~>> args . body)))
+
+(define-syntax-rule (lambda-and~> . body)
+  (lambda (arg) (and~> arg . body)))
+
+(define-syntax-rule (lambda-and~>> . body)
+  (lambda (arg) (and~>> arg . body)))
+
+(define-syntax-rule (lambda-and~>* . body)
+  (lambda args (and~> args . body)))
+
+(define-syntax-rule (lambda-and~>>* . body)
+  (lambda args (and~>> args . body)))
+
 (module+ test
   (require rackunit)
-  (check-equal? (~> 10) 10)
-  (check-equal? (~> 10 (- 1)) 9)
-  (check-equal? (~> 10 (- 1 2)) 7)
-  (check-equal? (~> 10 (- 1 2) number->string) "7")
-  (check-equal? (~> 10 (- 20 _ 2)) 8)
-  (check-equal? (~> 10 (- 20 _ 2 _)) -2)
-  (check-equal? (~> 10 (- (* 2 _) _)) 10)
-  (check-equal? (~> (* 2 2) (- (* 2 _) _)) 4)
+  (test-case
+    "~> and ~>>"
+    (check-equal? (~> 10) 10)
+    (check-equal? (~> 10 (- 1)) 9)
+    (check-equal? (~> 10 (- 1 2)) 7)
+    (check-equal? (~> 10 (- 1 2) number->string) "7")
+    (check-equal? (~> 10 (- 20 _ 2)) 8)
+    (check-equal? (~> 10 (- 20 _ 2 _)) -2)
+    (check-equal? (~> 10 (- (* 2 _) _)) 10)
+    (check-equal? (~> (* 2 2) (- (* 2 _) _)) 4)
 
-  (check-equal? (~>> 10) 10)
-  (check-equal? (~>> 10 (- 1)) -9)
-  (check-equal? (~>> 10 (- 1 2)) -11)
-  (check-equal? (~>> 10 (- 1 2) number->string) "-11")
-  (check-equal? (~>> 10 (- 20 _ 2)) 8)
-  (check-equal? (~>> 10 (- 20 _ 2 _)) -2)
-  (check-equal? (~>> 10 (- (* 2 _) _)) 10)
-  (check-equal? (~>> (* 2 2) (- (* 2 _) _)) 4))
+    (check-equal? (~>> 10) 10)
+    (check-equal? (~>> 10 (- 1)) -9)
+    (check-equal? (~>> 10 (- 1 2)) -11)
+    (check-equal? (~>> 10 (- 1 2) number->string) "-11")
+    (check-equal? (~>> 10 (- 20 _ 2)) 8)
+    (check-equal? (~>> 10 (- 20 _ 2 _)) -2)
+    (check-equal? (~>> 10 (- (* 2 _) _)) 10)
+    (check-equal? (~>> (* 2 2) (- (* 2 _) _)) 4))
 
-(provide ~> ~>> _)
+  (test-case
+    "and~> and ~>>"
+    (check-equal? (and~> 'x) 'x)
+    (check-equal? (and~>> 'x) 'x)
+
+    (check-equal? (and~> #f string->number) #f)
+    (check-equal? (and~>> #f string->number) #f)
+    (check-equal? (and~>  '(1 3 5) (findf odd? _) add1) 2)
+    (check-equal? (and~>> '(1 3 5) (findf odd?) add1) 2)
+
+    (check-equal? (and~>  '(1 3 5) (findf even? _) add1) #f)
+    (check-equal? (and~>> '(1 3 5) (findf even?) add1) #f)))
