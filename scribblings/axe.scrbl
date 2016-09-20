@@ -1,39 +1,43 @@
 #lang scribble/manual
 @require[racket/sandbox
-         scribble/eval
-         @for-label[axe]]
-@(define EVAL
-   (parameterize ([sandbox-output 'string]
-                  [sandbox-error-output 'string])
-     (make-evaluator 'axe)))
+         scribble/eval]
+
+@(define axe-eval
+   (make-eval-factory '(axe)))
 
 @title{#lang axe}
 @author{jinzhouz}
 
 
-Some handy tools that you might need. Just like the axe in your hand.
-
-@hyperlink["https://github.com/lotabout/axe" "Source"]
+Some handy tools that you might need. Just like the axe in your hand. @hyperlink["https://github.com/lotabout/axe" "Source"]
 
 @[table-of-contents]
+
+@defmodulelang[axe]
 
 @;====================================================================
 @section{Reader Extension}
 
-@defmodulelang[axe]
 
 Reader extension is enabled by @tt{#lang axe} which also export all
-identifiers from @tt{#lang racket}. Thus you can normally use @tt{#lang axe}
-wherever you need @tt{#lang racket}.
+identifiers from @tt{#lang racket}. Thus you can safely replace @tt{#lang
+racket} with @tt{#lang axe}.
 
 @;--------------------------------------------------------------------
 @subsection[#:tag "raw-regexp"]{Raw regexp}
 
-Read raw regular expressions. In python, we wrote a regular expression:
-@tt{r"(\t*)\1"}. When translated into racket, we have @racket{#px"(\t*)\\1"}. Note
-that we need to add another @tt{\} character to escape @tt{\\1}.
+@racketmod[
+axe
+@#,elem{#/raw regexp/}
+]
 
-It is inconvenient. Luckily we have @tt{#lang at-exp} so that we can do things like this:
+Typing regular expressions could be difficult in racket. In python, we can write
+a regular expression in raw mode: @tt{r"(\t*)\1"}. When translated into racket,
+we have @tt{#px"(\t*)\\1"}. Note that we need to add another @tt{\} character to
+escape @tt{\\1}.
+
+It is inconvenient. Luckily we have @tt{#lang at-exp} so that we can do things
+like this:
 
 @racketmod[
 at-exp racket/base
@@ -42,8 +46,91 @@ at-exp racket/base
 reports @racket['("123123" "123")]
 
 @tt{\1} is one example that you do NOT want something to be escaped by racket
-reader. But sometimes you do need it: such as when type @racket{@px"\t"}, you
-actually wants to match the tab character. If we use at-exp for it, it will
+reader. But sometimes you do need it: such as when type @tt{@"@"px"\t"}, you
+actually wants to match the @racket[#\tab]. If we use at-exp for it, it will
 treat @tt{\t} as two characters: @tt{\\} and @tt{t}. Which will not be
-recognized as tab character in racket's @racket{pregexp} compiler, nor
-@racket{regexp} of course.
+recognized as @racket[#\tab] character in racket's @racket{pregexp} compiler,
+nor @racket{regexp} of course.
+
+Thus we introduce the new form:
+
+@racketmod[
+axe
+(regexp-match @#,elem{#/(\t*)\1/} "\t\t")
+]
+
+reports @racket['("\t\t" "\t")]. That means the you can write raw regexp and
+enclose it with @tt{#/} and @tt{/}. Now try it!
+
+@;====================================================================
+@section{Handy Macros}
+
+@;--------------------------------------------------------------------
+@subsection[#:tag "threading"]{Threading Macros}
+
+@hyperlink["http://clojure.org/guides/threading_macros" "Threading macros"] are
+first introduced in clojure. It helps us to change nested function calls into
+"pipelines". For example: we are calculating some values with a complicated
+nested function calls:
+
+@(interaction
+#:eval (axe-eval)
+(- (bytes-ref (string->bytes/utf-8 (symbol->string 'abc)) 1) 2))
+
+It would be hard to understand the data flow in this expression. It would be
+more clear if we convert it into pipelines using the threading macro:
+@(interaction
+#:eval (axe-eval)
+(~> 'abc
+    symbol->string
+    string->bytes/utf-8
+    (bytes-ref 1)
+    (- 2)))
+
+Note that @racket[symbol->string] and @racket[string->bytes/utf-8] are not
+enclosed in parenthesis.
+
+@racket[~>] macro also enables you to use placeholder(@racket[_]) to specify the
+position of the arguments you want to place. So that you can achieve something
+like this:
+
+@(interaction
+#:eval (axe-eval)
+(~> '(1 2 3)
+     (map sqrt _)
+     (apply + _)
+     (- 20 (* _ 2))))
+
+You can also change the symbol for place holder to any identifier you like:
+
+@(interaction
+#:eval (axe-eval)
+(require (rename-in axe [_ %]))
+(~> '(1 2 3)
+     (map sqrt %)
+     (apply + %)
+     (- 20 (* % 2))))
+
+@defform[(~> expr clause ...)]
+
+Threads @emph{expr} through @emph{clause}. Insert @emph{expr} as the
+@bold{second} item in the first @emph{clause}. @racket[(~> expr (function arg))]
+is transformed into @racket[(~> expr (function _ arg))] and that
+results in @racket[(function expr arg)].
+
+If there are multiple clauses, thread the first clause as the second item in the
+second clause, recursively.
+
+@defform[(~>> expr clause ...)]
+
+Like @racket[~>] but insert @emph{expr} as the @bold{last} item in
+@emph{clause}. So that it equals to @racket[(~>> expr (function arg _))].
+
+
+The @hyperlink["https://docs.racket-lang.org/threading/index.html"
+"threading module"], and
+@hyperlink["http://docs.racket-lang.org/rackjure/index.html#(part._.Threading_macros)"
+"rackjure"] had already provide such functionality and good documents. But
+rackjure do not support placeholder and threading module do not support
+placeholder in nested function calls like @racket[(~> expr (fun1 (func2 _
+arg)))].
