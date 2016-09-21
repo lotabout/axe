@@ -63,7 +63,7 @@
     [(_ val func more ...)
      (let ([new-val val])
        (~> (syntax-parameterize ([_ (make-rename-transformer #'new-val)])
-                                (ensure-placeholder/front func))
+                                (ensure-placeholder #:pos front func))
            more ...))]))
 
 (define-syntax ~>>
@@ -73,26 +73,26 @@
     [(_ val func more ...)
      (let ([new-val val])
        (~> (syntax-parameterize ([_ (make-rename-transformer #'new-val)])
-                                (ensure-placeholder/end func))
+                                (ensure-placeholder #:pos 'end func))
            more ...))]))
 
-(define-syntax (ensure-placeholder/front stx)
-  (syntax-parse stx
-    [(_ e:id)
-     #'(e _)]
-    [(_ (e:expr arg ...))
-     (if (contains-placeholder? #'(e arg ...))
-         #'(e arg ...)
-         #'(e _ arg ...))]))
+(define-syntax (ensure-placeholder stx)
+  (define kernel? (literal-set->predicate kernel-literals))
 
-(define-syntax (ensure-placeholder/end stx)
   (syntax-parse stx
-    [(_ e:id)
+    [(_ (~optional (~seq #:pos pos)) (~or e:id e:keyword))
      #'(e _)]
-    [(_ (e:expr arg ...))
-     (if (contains-placeholder? #'(e arg ...))
-         #'(e arg ...)
-         #'(e arg ... _))]))
+    [(_ (~optional (~seq #:pos pos) #:defaults ([pos #'front])) (e:expr arg ...))
+     (if (kernel? #'e)
+         ; for top-level forms like quote, (~> x 'a) => ('a x)
+         #'((e arg ...) _)
+         (if (contains-placeholder? #'(e arg ...))
+             #'(e arg ...)
+             (if (eq? (syntax->datum (attribute pos)) 'front)
+                 #'(e _ arg ...)
+                 #'(e arg ... _))))]
+    [(_ (~optional (~seq #:pos pos)) data)
+     #'(data _)]))
 
 (begin-for-syntax
   (define (contains-placeholder? stx)
@@ -107,10 +107,10 @@
 ;;; some wrappers over ~> and ~>>
 
 (define-syntax-rule (and~> val func ...)
-  (~> val (and _ (ensure-placeholder/front func)) ...))
+  (~> val (and _ (ensure-placeholder #:pos front func)) ...))
 
 (define-syntax-rule (and~>> val func ...)
-  (~>> val (and _ (ensure-placeholder/end func)) ...))
+  (~>> val (and _ (ensure-placeholder #:pos end func)) ...))
 
 ;;; lambda wrappers
 
