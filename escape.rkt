@@ -1,7 +1,8 @@
 #lang racket/base
 
 (provide regex-escape-raw
-         pregexp-raw)
+         pregexp-raw
+         regexp-raw)
 
 (module+ test
   (require rackunit))
@@ -67,3 +68,4 @@
 
 ;;; wrappers over raw string
 (define (pregexp-raw str) (pregexp (regex-escape-raw str)))
+(define (regexp-raw str) (regexp (regex-escape-raw str)))

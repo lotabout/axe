@@ -2,7 +2,7 @@
 
 (require racket/function
          (only-in racket/port input-port-append)
-         (only-in axe/escape pregexp-raw))
+         (only-in axe/escape pregexp-raw regexp-raw))
 
 (provide make-axe-readtable)
 
@@ -13,7 +13,10 @@
 (define regex-raw-single-quote #px"'((?:\\\\.|(?<!\\\\).)*?)(?<!\\\\)'")
 (define regex-raw-slash #px"((?:\\\\.|(?<!\\\\).)*?(?<!\\\\))/")
 
-(define (read-raw-/ src in)
+(define (read-regexp-raw src in)
+  (define raw-string (bytes->string/locale (cadr (regexp-match regex-raw-slash in))))
+  (values (regexp-raw raw-string) (+ 1 (string-length raw-string))))
+(define (read-pregexp-raw src in)
   (define raw-string (bytes->string/locale (cadr (regexp-match regex-raw-slash in))))
   (values (pregexp-raw raw-string) (+ 1 (string-length raw-string))))
 
@@ -58,12 +61,17 @@
     [(#\r)  ; read raw string
      (cond [(or (eqv? (peek-char in) #\') (eqv? (peek-char in) #\"))
             (wrap-reader (curry read-raw-string (peek-char in)))]
+           [(peek/read? "x/" in) (wrap-reader read-regexp-raw)]
            [else (unget-normal-read-syntax "r" src in)])]
-    [(#\/) (wrap-reader read-raw-/)]
+    [(#\p) ; read #px/
+     (cond
+       [(peek/read? "x/" in) (wrap-reader read-pregexp-raw)]
+       [else (unget-normal-read-syntax "#p" src in)])]
     [else (normal-read-syntax src in)]))
 
 (define (make-axe-readtable [orig-readtable (current-readtable)])
   (define read-proc (make-reader-proc orig-readtable))
   (make-readtable (current-readtable)
                   #\r 'non-terminating-macro read-proc
-                  #\/ 'dispatch-macro read-proc))
+                  #\r 'dispatch-macro read-proc
+                  #\p 'dispatch-macro read-proc))
