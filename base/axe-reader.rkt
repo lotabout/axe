@@ -42,7 +42,7 @@
 
 ;;; taken from rackjure:
 ;;; https://github.com/greghendershott/rackjure/blob/master/rackjure/lambda-reader.rkt
-(define ((make-reader-proc [orig-readtable (current-readtable)]) ch in src line col pos)
+(define ((make-reader-proc [orig-readtable (current-readtable)]) dispatch? ch in src line col pos)
   (define (normal-read-syntax src in)
     (parameterize ([current-readtable orig-readtable])
       (read-syntax src in)))
@@ -62,7 +62,7 @@
      (cond [(or (eqv? (peek-char in) #\') (eqv? (peek-char in) #\"))
             (wrap-reader (curry read-raw-string (peek-char in)))]
            [(peek/read? "x/" in) (wrap-reader read-regexp-raw)]
-           [else (unget-normal-read-syntax "r" src in)])]
+           [else (unget-normal-read-syntax (if dispatch? "#r" "r") src in)])]
     [(#\p) ; read #px/
      (cond
        [(peek/read? "x/" in) (wrap-reader read-pregexp-raw)]
@@ -72,6 +72,6 @@
 (define (make-axe-readtable [orig-readtable (current-readtable)])
   (define read-proc (make-reader-proc orig-readtable))
   (make-readtable (current-readtable)
-                  #\r 'non-terminating-macro read-proc
-                  #\r 'dispatch-macro read-proc
-                  #\p 'dispatch-macro read-proc))
+                  #\r 'non-terminating-macro (curry read-proc #f)
+                  #\r 'dispatch-macro (curry read-proc #t)
+                  #\p 'dispatch-macro (curry read-proc #t)))
