@@ -15,28 +15,29 @@
 
 (define (read-regexp-raw src in)
   (define raw-string (bytes->string/locale (cadr (regexp-match regex-raw-slash in))))
-  (values (regexp-raw raw-string) (+ 1 (string-length raw-string))))
+  (values (regexp-raw (restore-escaped-char raw-string #\/)) (+ 1 (string-length raw-string))))
+
 (define (read-pregexp-raw src in)
   (define raw-string (bytes->string/locale (cadr (regexp-match regex-raw-slash in))))
-  (values (pregexp-raw raw-string) (+ 1 (string-length raw-string))))
+  (values (pregexp-raw (restore-escaped-char raw-string #\/)) (+ 1 (string-length raw-string))))
 
-;;; read-raw-string: (ch src in) -> (data, span)
-;;; ch: starting quote
-(define (read-raw-string ch src in)
+;;; read-raw-string: (quote-char src in) -> (data, span)
+(define (read-raw-string quote-char src in)
   (define raw-string
     (bytes->string/locale
-      (cadr (regexp-match (if (eqv? ch #\") regex-raw-double-quote regex-raw-single-quote) in))))
-  (values (parse-escapped-quote raw-string ch) (+ 2 (string-length raw-string))))
+      (cadr (regexp-match
+              (if (eqv? quote-char #\") regex-raw-double-quote regex-raw-single-quote) in))))
+  (values (restore-escaped-char raw-string quote-char) (+ 2 (string-length raw-string))))
 
-;;; In raw string, we use `/` to escape the delimiter, for example r"\"".
-;;; That means we should omit the `/` in r"\"".
-(define (parse-escapped-quote raw-string quote-ch)
+;;; In raw string, we use `\` to escape the delimiter, for example r"\"".
+;;; That means we should omit the `\` in r"\"".
+(define (restore-escaped-char raw-string escaped-char)
   (define in (open-input-string raw-string))
   (let loop ([ch (read-char in)] [ret '()])
     (if (eof-object? ch)
         (list->string (reverse ret))
         (if (and (eqv? ch #\\)
-                 (eqv? (peek-char in) quote-ch))
+                 (eqv? (peek-char in) escaped-char))
             (loop (read-char in) ret)
             (loop (read-char in) (cons ch ret))))))
 
