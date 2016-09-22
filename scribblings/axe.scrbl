@@ -18,10 +18,33 @@ Some handy tools that you might need. Just like the axe in your hand. @hyperlink
 @;====================================================================
 @section{Reader Extension}
 
-
 Reader extension is enabled by @tt{#lang axe} which also export all
 identifiers from @tt{#lang racket}. Thus you can safely replace @tt{#lang
 racket} with @tt{#lang axe}.
+
+@;--------------------------------------------------------------------
+@subsection[#:tag "raw-string"]{Raw String}
+@racketmod[
+axe
+@#,elem{r"raw string"}
+@#,elem{r'raw string'}
+]
+
+With this reader extension, you can compose raw strings just like you did in
+python. The @tt{\\} character is interpreted as raw. But note that @tt{\"} is
+interpreted as @tt{"} in @tt{r"\""} form. The same goes to @tt{'} in
+@tt{r'\''}.
+
+Note that even with raw string, times would still be hard with regular
+expressions, so now we provide regular expression utilities that work well
+with raw strings.
+
+@racketmod[
+axe
+(regexp-match (pregexp-raw @#,elem{r"(.*)\1"}) "123123")]
+
+i.e. you can build regular expression via @racket[pregexp-raw] with raw
+strings.
 
 @;--------------------------------------------------------------------
 @subsection[#:tag "raw-regexp"]{Raw regexp}
