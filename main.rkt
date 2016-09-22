@@ -28,10 +28,12 @@
 
 
 (require (except-in racket _) ; `_` will be used in axe/threading
-         "threading.rkt")
+         "threading.rkt"
+         "escape.rkt")
 
 (provide (all-from-out racket)
-         (all-from-out "threading.rkt"))
+         (all-from-out "threading.rkt")
+         (all-from-out "escape.rkt"))
 
 (module+ test
   ;; Tests to be run with raco test

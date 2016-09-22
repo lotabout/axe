@@ -2,7 +2,7 @@
 
 (provide configure)
 
-(require (only-in axe/base/regex-reader make-/-readtable))
+(require (only-in axe/base/axe-reader make-axe-readtable))
 
 (define (configure data)
-  (current-readtable (make-/-readtable)))
+  (current-readtable (make-axe-readtable)))

@@ -1,37 +1,10 @@
 #lang racket/base
 
-(provide (rename-out [/-read read]
-                     [/-read-syntax read-syntax])
-         make-/-readtable)
+(provide regex-escape-raw
+         pregexp-raw)
 
 (module+ test
   (require rackunit))
-
-(define (/-read in)
-  (read in))
-
-(define (/-read-syntax src in)
-  (parameterize ([current-readtable (make-/-readtable)])
-    (read-syntax src in)))
-
-(define read-/
-  (case-lambda
-    [(ch in)
-     (parse-/ in #f #f #f #f)]
-    [(ch in src line col pos)
-     (parse-/ in src line col pos)]))
-
-(define (parse-/ in src line col pos)
-  (define regex-expr
-    (bytes->string/locale
-      (cadr (regexp-match #px"((?:\\\\.|(?<!\\\\).)*?(?<!\\\\))/" in))))
-  (datum->syntax #f
-                 (pregexp (escape regex-expr))
-                 (vector src line col pos (string-length regex-expr))))
-
-(define (make-/-readtable)
-  (make-readtable (current-readtable)
-                  #\/ 'dispatch-macro read-/))
 
 ;;; wrap-escape: helper function to escape backslash if "\\<char>" can be recognized by racket
 ;;; reader
@@ -81,13 +54,16 @@
 ;;;
 ;;; "\\d\\t" -> "\\d\t"
 ;;; because "\\t" can be read by racket reader into string "\t", however "\\d" is not recognized.
-(define (escape str)
+(define (regex-escape-raw str)
   (read (open-input-string (wrap-escape str))))
 
 (module+ test
-  (check-equal? (escape "\\a\\b\\t\\n\\v\\f\\r\\e\\x64\\u4e2d\\U4e2d")
+  (check-equal? (regex-escape-raw "\\a\\b\\t\\n\\v\\f\\r\\e\\x64\\u4e2d\\U4e2d")
                 "\a\b\t\n\v\f\r\e\x64\u4e2d\U4e2d")
-  (check-equal? (escape "escaped quotes: \\\"\\'")
+  (check-equal? (regex-escape-raw "escaped quotes: \\\"\\'")
                 "escaped quotes: \\\"\\'")
-  (check-equal? (escape "\\d\\1") "\\d\\1")
-  (check-equal? (escape "double quote: \"") "double quote: \""))
+  (check-equal? (regex-escape-raw "\\d\\1") "\\d\\1")
+  (check-equal? (regex-escape-raw "double quote: \"") "double quote: \""))
+
+;;; wrappers over raw string
+(define (pregexp-raw str) (pregexp (regex-escape-raw str)))
