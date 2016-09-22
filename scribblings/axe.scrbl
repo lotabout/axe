@@ -51,7 +51,8 @@ strings.
 
 @racketmod[
 axe
-@#,elem{#/raw regexp/}
+@#,elem{#rx/raw regexp/}
+@#,elem{#px/raw regexp/}
 ]
 
 Typing regular expressions could be difficult in racket. In python, we can write
@@ -79,11 +80,11 @@ Thus we introduce the new form:
 
 @racketmod[
 axe
-(regexp-match @#,elem{#/(\t*)\1/} "\t\t")
+(regexp-match @#,elem{#px/(\t*)\1/} "\t\t")
 ]
 
 reports @racket['("\t\t" "\t")]. That means the you can write raw regexp and
-enclose it with @tt{#/} and @tt{/}. Now try it!
+enclose it with @tt{#px/} and @tt{/}. The same goes to @tt{#rx/raw/}
 
 @;====================================================================
 @section{Handy Macros}
