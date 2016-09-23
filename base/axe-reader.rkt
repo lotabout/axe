@@ -9,9 +9,9 @@
 (module+ test
   (require rackunit))
 
-(define regex-raw-double-quote #px"\"((?:\\\\.|(?<!\\\\).)*?)(?<!\\\\)\"")
-(define regex-raw-single-quote #px"'((?:\\\\.|(?<!\\\\).)*?)(?<!\\\\)'")
-(define regex-raw-slash #px"((?:\\\\.|(?<!\\\\).)*?(?<!\\\\))/")
+(define regex-raw-double-quote #px"\"((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)(?:(?<!\\\\)\"|(?<=\\\\\\\\)\")")
+(define regex-raw-single-quote #px"'((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)(?:(?<!\\\\)'|(?<=\\\\\\\\)')")
+(define regex-raw-slash #px"((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)(?:(?<!\\\\)/|(?<=\\\\\\\\)/)")
 
 (define (read-regexp-raw src in)
   (define raw-string (bytes->string/locale (cadr (regexp-match regex-raw-slash in))))
