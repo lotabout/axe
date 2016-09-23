@@ -1,6 +1,7 @@
 #lang racket/base
 
 (require racket/function
+         racket/set
          (only-in racket/port input-port-append)
          (only-in axe/escape pregexp-raw regexp-raw))
 
@@ -41,6 +42,10 @@
             (loop (read-char in) ret)
             (loop (read-char in) (cons ch ret))))))
 
+;;; s
+(define-syntax-rule (syntax/list->set e ...)
+  (set e ...))
+
 ;;; taken from rackjure:
 ;;; https://github.com/greghendershott/rackjure/blob/master/rackjure/lambda-reader.rkt
 (define ((make-reader-proc [orig-readtable (current-readtable)]) dispatch? ch in src line col pos)
@@ -73,6 +78,9 @@
      (if (char-whitespace? (peek-char in))
          (normal-read-syntax src in)
          (unget-normal-read-syntax "," src in))]
+    [(#\{) ; #{1 2 3 4} to read hash set (set 1 2 3 4)
+     (syntax-case (unget-normal-read-syntax "#{" src in) ()
+       [#(e ...) #'(set e ...)])]
     [else (normal-read-syntax src in)]))
 
 (define (make-axe-readtable [orig-readtable (current-readtable)])
@@ -82,4 +90,5 @@
                   #\: 'non-terminating-macro (curry read-proc #f)
                   #\, 'terminating-macro (curry read-proc #f)
                   #\r 'dispatch-macro (curry read-proc #t)
-                  #\p 'dispatch-macro (curry read-proc #t)))
+                  #\p 'dispatch-macro (curry read-proc #t)
+                  #\{ 'dispatch-macro (curry read-proc #t)))
