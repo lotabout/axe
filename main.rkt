@@ -29,9 +29,11 @@
 
 (require (except-in racket _) ; `_` will be used in axe/threading
          "threading.rkt"
-         "escape.rkt")
+         "escape.rkt"
+         "app.rkt")
 
-(provide (all-from-out racket)
+(provide (except-out (all-from-out racket) #%app)
+         (rename-out [-#%app #%app])
          (all-from-out "threading.rkt")
          (all-from-out "escape.rkt"))
 
