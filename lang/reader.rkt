@@ -4,4 +4,4 @@ axe
 #:read-syntax /-read-syntax
 #:language-info #(axe/base/lang/language-info get-language-info #f)
 
-(require (prefix-in /- "../base/regex-reader.rkt"))
+(require (prefix-in /- "../base/axe-reader.rkt"))

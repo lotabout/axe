@@ -64,6 +64,7 @@
             (wrap-reader (curry read-raw-string (peek-char in)))]
            [(peek/read? "x/" in) (wrap-reader read-regexp-raw)]
            [else (unget-normal-read-syntax (if dispatch? "#r" "r") src in)])]
+    [(#\:) (unget-normal-read-syntax "#:" src in)]
     [(#\p) ; read #px/
      (cond
        [(peek/read? "x/" in) (wrap-reader read-pregexp-raw)]
@@ -78,6 +79,7 @@
   (define read-proc (make-reader-proc orig-readtable))
   (make-readtable (current-readtable)
                   #\r 'non-terminating-macro (curry read-proc #f)
+                  #\: 'non-terminating-macro (curry read-proc #f)
                   #\, 'terminating-macro (curry read-proc #f)
                   #\r 'dispatch-macro (curry read-proc #t)
                   #\p 'dispatch-macro (curry read-proc #t)))

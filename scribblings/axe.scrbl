@@ -1,7 +1,6 @@
 #lang scribble/manual
-@require[racket/sandbox
-         scribble/eval
-         @for-label[axe]]
+@require[scribble/eval
+         @for-label[(except-in axe #%app)]]
 
 @(define axe-eval
    (make-eval-factory '(axe)))
@@ -85,6 +84,11 @@ axe
 
 reports @racket['("\t\t" "\t")]. That means the you can write raw regexp and
 enclose it with @tt{#px/} and @tt{/}. The same goes to @tt{#rx/raw/}
+
+@;--------------------------------------------------------------------
+@subsection[#:tag "quick-keyword"]{Quick Keyword}
+
+This one is simple. You can replace @racket[#:key] with @racket[:key].
 
 @;====================================================================
 @section{Handy Macros}
