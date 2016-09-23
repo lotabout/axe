@@ -68,11 +68,16 @@
      (cond
        [(peek/read? "x/" in) (wrap-reader read-pregexp-raw)]
        [else (unget-normal-read-syntax "#p" src in)])]
+    [(#\,) ; use `,` as space
+     (if (char-whitespace? (peek-char in))
+         (normal-read-syntax src in)
+         (unget-normal-read-syntax "," src in))]
     [else (normal-read-syntax src in)]))
 
 (define (make-axe-readtable [orig-readtable (current-readtable)])
   (define read-proc (make-reader-proc orig-readtable))
   (make-readtable (current-readtable)
                   #\r 'non-terminating-macro (curry read-proc #f)
+                  #\, 'terminating-macro (curry read-proc #f)
                   #\r 'dispatch-macro (curry read-proc #t)
                   #\p 'dispatch-macro (curry read-proc #t)))
