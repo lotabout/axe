@@ -30,12 +30,14 @@
 (require (except-in racket _) ; `_` will be used in axe/threading
          "threading.rkt"
          "escape.rkt"
-         "app.rkt")
+         "app.rkt"
+         "conditionals.rkt")
 
 (provide (except-out (all-from-out racket) #%app)
          (rename-out [-#%app #%app])
          (all-from-out "threading.rkt")
-         (all-from-out "escape.rkt"))
+         (all-from-out "escape.rkt")
+         (all-from-out "conditionals.rkt"))
 
 (module+ test
   ;; Tests to be run with raco test
