@@ -3,7 +3,7 @@
 (require racket/function
          racket/set
          (only-in racket/port input-port-append)
-         (only-in axe/escape pregexp-raw regexp-raw))
+         (only-in axe/escape pregexp-raw regexp-raw regex-escape-raw))
 
 (provide make-axe-readtable)
 
@@ -13,6 +13,10 @@
 (define regex-raw-double-quote #px"\"((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)(?:(?<!\\\\)\"|(?<=\\\\\\\\)\")")
 (define regex-raw-single-quote #px"'((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)(?:(?<!\\\\)'|(?<=\\\\\\\\)')")
 (define regex-raw-slash #px"((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)(?:(?<!\\\\)/|(?<=\\\\\\\\)/)")
+
+(define (read-regexp-str-raw src in)
+  (define raw-string (bytes->string/locale (cadr (regexp-match regex-raw-slash in))))
+  (values (regex-escape-raw (restore-escaped-char raw-string #\/)) (+ 1 (string-length raw-string))))
 
 (define (read-regexp-raw src in)
   (define raw-string (bytes->string/locale (cadr (regexp-match regex-raw-slash in))))
@@ -67,6 +71,7 @@
     [(#\r)  ; read raw string
      (cond [(or (eqv? (peek-char in) #\') (eqv? (peek-char in) #\"))
             (wrap-reader (curry read-raw-string (peek-char in)))]
+           [(peek/read? "/" in) (wrap-reader read-regexp-str-raw)]
            [(peek/read? "x/" in) (wrap-reader read-regexp-raw)]
            [else (unget-normal-read-syntax (if dispatch? "#r" "r") src in)])]
     [(#\:) (unget-normal-read-syntax "#:" src in)]

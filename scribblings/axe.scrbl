@@ -52,6 +52,7 @@ strings.
 axe
 @#,elem{#rx/raw regexp/}
 @#,elem{#px/raw regexp/}
+@#,elem{r/raw regexp string/}
 ]
 
 Typing regular expressions could be difficult in racket. In python, we can write
@@ -84,6 +85,25 @@ axe
 
 reports @racket['("\t\t" "\t")]. That means the you can write raw regexp and
 enclose it with @tt{#px/} and @tt{/}. The same goes to @tt{#rx/raw/}
+
+The "raw regexp string" is like raw regular expressions, but they can be used
+as replace string in @racket[regexp-replace]. The following two forms are equal:
+
+@racketmod[
+axe
+
+@#,elem{#px/(\t*)\1/}
+(pregexp @#,elem{r/(\t*)\1/})
+]
+
+And the @tt{r/raw regex string/} can be use where regexp strings are needed:
+
+@racketmod[
+axe
+(regexp-replace @#,elem{#px/(\d+)/} "abc123xyz" @#,elem{r/-\1-/})
+]
+
+We got result @racket["abc-123-xyz"].
 
 @;--------------------------------------------------------------------
 @subsection[#:tag "quick-keyword"]{Quick Keyword}
