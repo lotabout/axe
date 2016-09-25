@@ -5,7 +5,8 @@
          (only-in racket/port input-port-append)
          (only-in axe/escape pregexp-raw regexp-raw regex-escape-raw))
 
-(provide make-axe-readtable)
+(provide make-axe-readtable
+         axe-wrapper)
 
 (module+ test
   (require rackunit))
@@ -97,3 +98,9 @@
                   #\r 'dispatch-macro (curry read-proc #t)
                   #\p 'dispatch-macro (curry read-proc #t)
                   #\{ 'dispatch-macro (curry read-proc #t)))
+
+;; A `#:wrapper1` for `syntax/module-reader`
+(define (axe-wrapper thk)
+  (define orig-readtable (current-readtable))
+  (parameterize ([current-readtable (make-axe-readtable orig-readtable)])
+    (thk)))

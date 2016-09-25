@@ -27,7 +27,7 @@
            (cond
              [(eqv? next #\\) ; consume '\\'
               (read-char in)
-              (loop (read-char in) (cons #\\ (cons #\\ ret)))]
+              (loop (read-char in) (cons #\\ (cons #\\ (cons #\\ (cons #\\ ret)))))]
              [(ormap (lambda (ch) (eqv? ch next))
                       (list #\a #\b #\t #\n #\v #\f #\r #\e #\x #\u #\U #\newline #\linefeed
                             #\return))
@@ -46,7 +46,8 @@
   (check-equal? (wrap-escape "escaped quotes: \\\"\\'")
                 "\"escaped quotes: \\\\\\\"\\\\'\"")
   (check-equal? (wrap-escape "\\d\\1") "\"\\\\d\\\\1\"")
-  (check-equal? (wrap-escape "double quote: \"") "\"double quote: \\\"\""))
+  (check-equal? (wrap-escape "double quote: \"") "\"double quote: \\\"\"")
+  (check-equal? (wrap-escape "escaped: \\\\") "\"escaped: \\\\\\\\\""))
 
 ;;; escape the backslash('\') in a string for regexp
 ;;;
