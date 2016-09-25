@@ -72,7 +72,7 @@
      val]
     [(_ val func more ...)
      (let ([new-val val])
-       (~> (syntax-parameterize ([_ (make-rename-transformer #'new-val)])
+       (~>> (syntax-parameterize ([_ (make-rename-transformer #'new-val)])
                                 (ensure-placeholder #:pos 'end func))
            more ...))]))
 
