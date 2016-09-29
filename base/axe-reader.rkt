@@ -1,6 +1,8 @@
 #lang racket/base
 
-(require racket/function
+(require (for-syntax racket/base
+                     racket/list)
+         racket/function
          racket/set
          (only-in racket/port input-port-append)
          (only-in axe/escape pregexp-raw regexp-raw regex-escape-raw))
@@ -10,6 +12,28 @@
 
 (module+ test
   (require rackunit))
+
+(define-syntax (define-unbindable-ids stx)
+  (syntax-case stx ()
+    [(_ package [name id] ...)
+     (with-syntax ([(gen-id ...)
+                    (for/list ([id (in-list (syntax->list #'(id ...)))])
+                      (string->uninterned-symbol (symbol->string (syntax-e id))))]
+                   [(n ...) (range -10 11)])
+       #'(begin
+           (require (for-meta n (only-in package [id gen-id] ...)) ...)
+           (define name (quote-syntax gen-id))
+           ...))]))
+
+(define-unbindable-ids racket/base
+  [lambda-id lambda]
+  [define-syntax-id define-syntax]
+  [app-id #%app]
+  [make-rename-transformer-id make-rename-transformer]
+  [syntax-id syntax])
+
+(define-unbindable-ids racket/set
+  [set-id set])
 
 (define regex-raw-double-quote #px"\"((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)(?:(?<!\\\\)\"|(?<=\\\\\\\\)\")")
 (define regex-raw-single-quote #px"'((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)(?:(?<!\\\\)'|(?<=\\\\\\\\)')")
@@ -47,10 +71,6 @@
             (loop (read-char in) ret)
             (loop (read-char in) (cons ch ret))))))
 
-;;; s
-(define-syntax-rule (syntax/list->set e ...)
-  (set e ...))
-
 ;;; taken from rackjure:
 ;;; https://github.com/greghendershott/rackjure/blob/master/rackjure/lambda-reader.rkt
 (define ((make-reader-proc [orig-readtable (current-readtable)]) dispatch? ch in src line col pos)
@@ -86,7 +106,10 @@
          (unget-normal-read-syntax "," src in))]
     [(#\{) ; #{1 2 3 4} to read hash set (set 1 2 3 4)
      (syntax-case (unget-normal-read-syntax "#{" src in) ()
-       [#(e ...) #'(set e ...)])]
+       [#(e ...)
+        (with-syntax ([set set-id]
+                      [app app-id])
+          #'(app set e ...))])]
     [else (normal-read-syntax src in)]))
 
 (define (make-axe-readtable [orig-readtable (current-readtable)])
