@@ -2,14 +2,42 @@
 
 (require racket/function
          racket/set
+         racket/match
+         syntax/srcloc
          (only-in racket/port input-port-append)
-         (only-in axe/escape pregexp-raw regexp-raw regex-escape-raw))
+         (only-in axe/escape pregexp-raw regexp-raw regex-escape-raw)
+         (for-meta -10 racket/base racket/set)
+         (for-meta -9 racket/base racket/set)
+         (for-meta -8 racket/base racket/set)
+         (for-meta -7 racket/base racket/set)
+         (for-meta -6 racket/base racket/set)
+         (for-meta -5 racket/base racket/set)
+         (for-meta -4 racket/base racket/set)
+         (for-meta -3 racket/base racket/set)
+         (for-meta -2 racket/base racket/set)
+         (for-meta -1 racket/base racket/set)
+         (for-meta 0 racket/base racket/set)
+         (for-meta 1 racket/base racket/set)
+         (for-meta 2 racket/base racket/set)
+         (for-meta 3 racket/base racket/set)
+         (for-meta 4 racket/base racket/set)
+         (for-meta 5 racket/base racket/set)
+         (for-meta 6 racket/base racket/set)
+         (for-meta 7 racket/base racket/set)
+         (for-meta 8 racket/base racket/set)
+         (for-meta 9 racket/base racket/set)
+         (for-meta 10 racket/base racket/set))
 
 (provide make-axe-readtable
          axe-wrapper)
 
 (module+ test
   (require rackunit))
+
+(define current-axe-introduce
+  (make-parameter
+    (lambda (stx)
+      (error 'current-axe-introduce "Must be used within the axe-reader"))))
 
 (define regex-raw-double-quote #px"\"((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)(?:(?<!\\\\)\"|(?<=\\\\\\\\)\")")
 (define regex-raw-single-quote #px"'((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)(?:(?<!\\\\)'|(?<=\\\\\\\\)')")
@@ -47,10 +75,6 @@
             (loop (read-char in) ret)
             (loop (read-char in) (cons ch ret))))))
 
-;;; s
-(define-syntax-rule (syntax/list->set e ...)
-  (set e ...))
-
 ;;; taken from rackjure:
 ;;; https://github.com/greghendershott/rackjure/blob/master/rackjure/lambda-reader.rkt
 (define ((make-reader-proc [orig-readtable (current-readtable)]) dispatch? ch in src line col pos)
@@ -63,7 +87,7 @@
     (and (equal? str (peek-string (string-length str) 0 in))
          (read-string (string-length str) in)))
 
-  (define (wrap-reader reader)
+  (define (wrap-string-reader reader)
     (let-values ([(data span) (reader src in)])
       (datum->syntax #f data (vector src line col pos span))))
 
@@ -71,22 +95,25 @@
   (case ch
     [(#\r)  ; read raw string
      (cond [(or (eqv? (peek-char in) #\') (eqv? (peek-char in) #\"))
-            (wrap-reader (curry read-raw-string (peek-char in)))]
-           [(peek/read? "/" in) (wrap-reader read-regexp-str-raw)]
-           [(peek/read? "x/" in) (wrap-reader read-regexp-raw)]
+            (wrap-string-reader (curry read-raw-string (peek-char in)))]
+           [(peek/read? "/" in) (wrap-string-reader read-regexp-str-raw)]
+           [(peek/read? "x/" in) (wrap-string-reader read-regexp-raw)]
            [else (unget-normal-read-syntax (if dispatch? "#r" "r") src in)])]
     [(#\:) (unget-normal-read-syntax "#:" src in)]
     [(#\p) ; read #px/
      (cond
-       [(peek/read? "x/" in) (wrap-reader read-pregexp-raw)]
+       [(peek/read? "x/" in) (wrap-string-reader read-pregexp-raw)]
        [else (unget-normal-read-syntax "#p" src in)])]
     [(#\,) ; use `,` as space
      (if (char-whitespace? (peek-char in))
          (normal-read-syntax src in)
          (unget-normal-read-syntax "," src in))]
     [(#\{) ; #{1 2 3 4} to read hash set (set 1 2 3 4)
-     (syntax-case (unget-normal-read-syntax "#{" src in) ()
-       [#(e ...) #'(set e ...)])]
+     (define intro (current-axe-introduce))
+     (define stx (intro (unget-normal-read-syntax "#{" src in)))
+     (intro (syntax-case stx ()
+              [#(e ...)
+               #'(set e ...)]))]
     [else (normal-read-syntax src in)]))
 
 (define (make-axe-readtable [orig-readtable (current-readtable)])
@@ -99,8 +126,13 @@
                   #\p 'dispatch-macro (curry read-proc #t)
                   #\{ 'dispatch-macro (curry read-proc #t)))
 
-;; A `#:wrapper1` for `syntax/module-reader`
 (define (axe-wrapper thk)
-  (define orig-readtable (current-readtable))
-  (parameterize ([current-readtable (make-axe-readtable orig-readtable)])
-    (thk)))
+  (lambda args
+    (define orig-readtable (current-readtable))
+    (define introduce (make-syntax-introducer #t))
+    (parameterize ([current-readtable (make-axe-readtable orig-readtable)]
+                   [current-axe-introduce introduce])
+      (define stx (apply thk args))
+      (if (syntax? stx)
+          (introduce stx)
+          stx))))
