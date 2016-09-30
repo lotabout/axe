@@ -4,6 +4,9 @@
                      racket/list)
          racket/function
          racket/set
+         racket/list
+         racket/match
+         syntax/parse
          (only-in racket/port input-port-append)
          (only-in axe/escape pregexp-raw regexp-raw regex-escape-raw))
 
@@ -34,6 +37,9 @@
 
 (define-unbindable-ids racket/set
   [set-id set])
+
+;;;=============================================================================
+;;; Raw strings, regexps
 
 (define regex-raw-double-quote #px"\"((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)(?:(?<!\\\\)\"|(?<=\\\\\\\\)\")")
 (define regex-raw-single-quote #px"'((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)(?:(?<!\\\\)'|(?<=\\\\\\\\)')")
@@ -70,6 +76,81 @@
                  (eqv? (peek-char in) escaped-char))
             (loop (read-char in) ret)
             (loop (read-char in) (cons ch ret))))))
+
+;;;=============================================================================
+;;; Literal lambda
+;;; Based on curly-fn: https://github.com/lexi-lambda/racket-curly-fn
+
+; struct to store argument information of a lambda literal: #(a b %)
+(struct argument-info (max-positional has-rest? keywords) #:transparent)
+(define empty-argument-info (argument-info 0 #f '()))
+
+; merge two argument-info structure
+(define/match (merge-argument-info a b)
+  [((argument-info m r k)
+    (argument-info mm rr kk))
+   (argument-info (max m mm)
+                  (or r rr)
+                  (remove-duplicates (append k kk)))])
+
+; merge a list of argument-info
+(define (merge-list-of-argument-info . args)
+  (foldl merge-argument-info empty-argument-info args))
+(define (merge-list-of-argument-info* args)
+  (apply merge-list-of-argument-info args))
+
+; parse the usage of %, %n, %& and %:kw in a syntax object
+(define (parse-arguments stx)
+  (syntax-parse stx
+    #:datum-literals (quote)
+    ; examine identifiers to see if they are special
+    [id:id (parse-arguments/symbol (syntax-e #'id))]
+    ; stop on literals
+    [((~datum quote) . _) empty-argument-info]
+    ; recursively search through lists
+    [(form ...) (merge-list-of-argument-info* (map parse-arguments (syntax->list stx)))]
+    ; otherwise, return null
+    [_ empty-argument-info]))
+
+; identifies the type of argument represented by a symbol
+(define (parse-arguments/symbol sym)
+  (match (symbol->string sym)
+    ["%" (argument-info 1 #f '())]
+    ["%&" (argument-info 0 #t '())]
+    [(regexp #px"%(\\d+)" (list _ (app string->number n)))
+     (argument-info n #f null)]
+    [(regexp #px"%:(.+)" (list _ (app string->keyword k)))
+     (argument-info 0 #f (list k))]
+    [_ empty-argument-info]))
+
+(define (stx->args stx)
+  (match-let ([(argument-info max-positional has-rest? keywords)
+               (parse-arguments stx)])
+    (define datum-kw-formals
+      (append (for/list ([n (in-range 1 (add1 max-positional))])
+                (string->symbol (string-append "%" (number->string n))))
+              (append*
+                (for/list ([kw (in-list keywords)])
+                  (list kw (string->symbol (string-append "%:" (keyword->string kw))))))
+              (if has-rest? '%& '())))
+    (datum->syntax stx datum-kw-formals stx)))
+
+(define (parse-lambda-literal stx)
+  (with-syntax ([lambda lambda-id]
+                [define-syntax define-syntax-id]
+                [app app-id]
+                [make-rename-transformer make-rename-transformer-id]
+                [syntax syntax-id]
+                [args (stx->args stx)]
+                [% (datum->syntax stx '% stx)]
+                [%1 (datum->syntax stx '%1 stx)]
+                [body stx])
+    #`(lambda args
+        (define-syntax % (app make-rename-transformer #'%1))
+        body)))
+
+;;;=============================================================================
+;;; Build read tables
 
 ;;; taken from rackjure:
 ;;; https://github.com/greghendershott/rackjure/blob/master/rackjure/lambda-reader.rkt
@@ -110,6 +191,18 @@
         (with-syntax ([set set-id]
                       [app app-id])
           #'(app set e ...))])]
+    [(#\() ; lambda literal #( ... )
+     (parse-lambda-literal (unget-normal-read-syntax "(" src in))]
+    [(#\f) ; lambda literal #fn( ... )
+     (cond [(peek/read? "n(" in)
+            (parse-lambda-literal (unget-normal-read-syntax "(" src in))]
+           [else (unget-normal-read-syntax "#f" src in)])]
+    [(#\l) ; lambda literal #fn( ... )
+     (cond [(peek/read? "ambda(" in)
+            (parse-lambda-literal (unget-normal-read-syntax "(" src in))]
+           [else (unget-normal-read-syntax "#l" src in)])]
+    [(#\λ) ; lambda literal #λ( ... )
+     (parse-lambda-literal (normal-read-syntax src in))]
     [else (normal-read-syntax src in)]))
 
 (define (make-axe-readtable [orig-readtable (current-readtable)])
@@ -120,7 +213,11 @@
                   #\, 'terminating-macro (curry read-proc #f)
                   #\r 'dispatch-macro (curry read-proc #t)
                   #\p 'dispatch-macro (curry read-proc #t)
-                  #\{ 'dispatch-macro (curry read-proc #t)))
+                  #\{ 'dispatch-macro (curry read-proc #t)
+                  #\( 'dispatch-macro (curry read-proc #t)
+                  #\f 'dispatch-macro (curry read-proc #t)
+                  #\l 'dispatch-macro (curry read-proc #t)
+                  #\λ 'dispatch-macro (curry read-proc #t)))
 
 ;; A `#:wrapper1` for `syntax/module-reader`
 (define (axe-wrapper thk)
