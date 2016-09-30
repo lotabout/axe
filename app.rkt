@@ -35,7 +35,7 @@
 
     [(_ x_:expr y_:expr d_:expr)
      #'(let ([x x_] [y y_] [d d_])
-         (cond [(procedure? x) (#%app x y)]
+         (cond [(procedure? x) (#%app x y d)]
                [(dict? x) (dict-ref x y d)] ; (dict key default)
                [(dict? y) (dict-ref y x d)] ; (key dict default)
                [else (error 'applicable-dict "Dict should be specified in either (~v ~v)" x y)]))]
