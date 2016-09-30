@@ -80,20 +80,20 @@
            (arrow (syntax-parameterize ([_ (make-rename-transformer #'new-val)]) app/ctx)
                   more ...))])])
 (define-for-syntax (ensure-placeholder stx #:pos [pos 'front])
-    (syntax-parse stx
-      #:literals (quote quasiquote)
-      [(~or e:id e:keyword) #'(e _)]
-      [((~or e:quote e:quasiquote) data ...)
-       (if (contains-placeholder? #'(e data ...))
-           #'(e data ...)
-           #'((e data ...) _))]
-      [(e:expr arg ...)
-       (if (contains-placeholder? #'(e arg ...))
-           #'(e arg ...)
-           (if (eq? pos 'front)
-               #'(e _ arg ...)
-               #'(e arg ... _)))]
-      [data #'(data _)]))
+  (syntax-parse stx
+    #:literals (quote quasiquote)
+    [(~or e:id e:keyword) #'(e _)]
+    [((~or e:quote e:quasiquote) data ...)
+     (if (contains-placeholder? #'(e data ...))
+         #'(e data ...)
+         #'((e data ...) _))]
+    [(e:expr arg ...)
+     (if (contains-placeholder? #'(e arg ...))
+         #'(e arg ...)
+         (if (eq? pos 'front)
+             #'(e _ arg ...)
+             #'(e arg ... _)))]
+    [data #'(data _)]))
 
 (begin-for-syntax
 
