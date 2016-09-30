@@ -1,6 +1,7 @@
 #lang racket/base
 
 (require racket/stxparam
+         syntax/parse/define
          (for-syntax racket/base
                      racket/list
                      syntax/parse))
@@ -56,45 +57,47 @@
 
 (define-syntax-parameter _ default-placeholder)
 
-(define-syntax ~>
-  (syntax-rules ()
-    [(_ val)
-     val]
-    [(_ val func more ...)
-     (let ([new-val val])
-       (~> (syntax-parameterize ([_ (make-rename-transformer #'new-val)])
-                                (ensure-placeholder #:pos front func))
-           more ...))]))
+;;; We want to use the #%app unhygenic
+;;; This function is used to adjust the context of `stx` to `ctx`
+(define-for-syntax (adjust-outer-context ctx stx [srcloc #f])
+  (datum->syntax ctx (syntax-e stx) srcloc))
 
-(define-syntax ~>>
-  (syntax-rules ()
-    [(_ val)
-     val]
-    [(_ val func more ...)
-     (let ([new-val val])
-       (~>> (syntax-parameterize ([_ (make-rename-transformer #'new-val)])
-                                (ensure-placeholder #:pos 'end func))
-           more ...))]))
+(define-syntax-parser ~>
+  [(_ val) #'val]
+  [(arrow val func more ...)
+   (syntax-case (adjust-outer-context #'arrow (ensure-placeholder #'func)) ()
+     [app/ctx
+       #'(let ([new-val val])
+           (arrow (syntax-parameterize ([_ (make-rename-transformer #'new-val)]) app/ctx)
+                  more ...))])])
 
-(define-syntax (ensure-placeholder stx)
-  (define kernel? (literal-set->predicate kernel-literals))
-
-  (syntax-parse stx
-    [(_ (~optional (~seq #:pos pos)) (~or e:id e:keyword))
-     #'(e _)]
-    [(_ (~optional (~seq #:pos pos) #:defaults ([pos #'front])) (e:expr arg ...))
-     (if (kernel? #'e)
-         ; for top-level forms like quote, (~> x 'a) => ('a x)
-         #'((e arg ...) _)
-         (if (contains-placeholder? #'(e arg ...))
-             #'(e arg ...)
-             (if (eq? (syntax->datum (attribute pos)) 'front)
-                 #'(e _ arg ...)
-                 #'(e arg ... _))))]
-    [(_ (~optional (~seq #:pos pos)) data)
-     #'(data _)]))
+(define-syntax-parser ~>>
+  [(_ val) #'val]
+  [(arrow val func more ...)
+   (syntax-case (adjust-outer-context #'arrow (ensure-placeholder #'func #:pos 'end)) ()
+     [app/ctx
+       #'(let ([new-val val])
+           (arrow (syntax-parameterize ([_ (make-rename-transformer #'new-val)]) app/ctx)
+                  more ...))])])
+(define-for-syntax (ensure-placeholder stx #:pos [pos 'front])
+    (syntax-parse stx
+      #:literals (quote quasiquote)
+      [(~or e:id e:keyword) #'(e _)]
+      [((~or e:quote e:quasiquote) data ...)
+       (if (contains-placeholder? #'(e data ...))
+           #'(e data ...)
+           #'((e data ...) _))]
+      [(e:expr arg ...)
+       (if (contains-placeholder? #'(e arg ...))
+           #'(e arg ...)
+           (if (eq? pos 'front)
+               #'(e _ arg ...)
+               #'(e arg ... _)))]
+      [data #'(data _)]))
 
 (begin-for-syntax
+
+
   (define (contains-placeholder? stx)
     (with-handlers ([exn:fail:syntax:placeholder? (lambda (x) #t)]
                     [(lambda (x) #t) (lambda (x) #f)])
@@ -106,37 +109,67 @@
 
 ;;; some wrappers over ~> and ~>>
 
-(define-syntax-rule (and~> val func ...)
-  (~> val (and _ (ensure-placeholder #:pos front func)) ...))
+(define-syntax-parser and~>
+  [(arrow val func ...)
+   (with-syntax
+     ([(body ...)
+       (datum->syntax #f
+                      (map (lambda (stx) (adjust-outer-context #'arrow (ensure-placeholder stx)))
+                           (syntax-e #'(func ...)))
+                      #f)])
+     #'(~> val (and _ body) ...))])
 
-(define-syntax-rule (and~>> val func ...)
-  (~>> val (and _ (ensure-placeholder #:pos end func)) ...))
+(define-syntax-parser and~>>
+  [(arrow val func ...)
+   (with-syntax
+     ([(body ...)
+       (datum->syntax #f
+                      (map (lambda (stx) (adjust-outer-context #'arrow (ensure-placeholder stx #:pos 'end)))
+                           (syntax-e #'(func ...)))
+                      #f)])
+     #'(~>> val (and _ body) ...))])
 
 ;;; lambda wrappers
 
-(define-syntax-rule (lambda~> . body)
-  (lambda (arg) (~> arg . body)))
+(define-syntax-parser lambda~>
+  [(arrow . body)
+   (with-syntax ([~> (adjust-outer-context #'arrow #'~>)])
+     #'(lambda (arg) (~> arg . body)))])
 
-(define-syntax-rule (lambda~>> . body)
-  (lambda (arg) (~>> arg . body)))
+(define-syntax-parser lambda~>>
+  [(arrow . body)
+   (with-syntax ([~>> (adjust-outer-context #'arrow #'~>>)])
+     #'(lambda (arg) (~>> arg . body)))])
 
-(define-syntax-rule (lambda~>* . body)
-  (lambda args (~> args . body)))
+(define-syntax-parser lambda~>*
+  [(arrow . body)
+   (with-syntax ([~> (adjust-outer-context #'arrow #'~>)])
+     #'(lambda args (~> args . body)))])
 
-(define-syntax-rule (lambda~>>* . body)
-  (lambda args (~>> args . body)))
+(define-syntax-parser lambda~>>*
+  [(arrow . body)
+   (with-syntax ([~>> (adjust-outer-context #'arrow #'~>>)])
+     #'(lambda args (~>> args . body)))])
 
-(define-syntax-rule (lambda-and~> . body)
-  (lambda (arg) (and~> arg . body)))
+(define-syntax-parser lambda-and~>
+  [(arrow . body)
+   (with-syntax ([and~> (adjust-outer-context #'arrow #'and~>)])
+     #'(lambda (arg) (and~> arg . body)))])
 
-(define-syntax-rule (lambda-and~>> . body)
-  (lambda (arg) (and~>> arg . body)))
+(define-syntax-parser lambda-and~>>
+  [(arrow . body)
+   (with-syntax ([and~>> (adjust-outer-context #'arrow #'and~>>)])
+     #'(lambda (arg) (and~>> arg . body)))])
 
-(define-syntax-rule (lambda-and~>* . body)
-  (lambda args (and~> args . body)))
+(define-syntax-parser lambda-and~>*
+  [(arrow . body)
+   (with-syntax ([and~> (adjust-outer-context #'arrow #'and~>)])
+     #'(lambda args (and~> args . body)))])
 
-(define-syntax-rule (lambda-and~>>* . body)
-  (lambda args (and~>> args . body)))
+(define-syntax-parser lambda-and~>>*
+  [(arrow . body)
+   (with-syntax ([and~>> (adjust-outer-context #'arrow #'and~>>)])
+     #'(lambda args (and~>> args . body)))])
 
 (module+ test
   (require rackunit)
@@ -150,6 +183,7 @@
     (check-equal? (~> 10 (- 20 _ 2 _)) -2)
     (check-equal? (~> 10 (- (* 2 _) _)) 10)
     (check-equal? (~> (* 2 2) (- (* 2 _) _)) 4)
+    (check-equal? (~> (* 2 2) (- (* 2 _) _) (- 2)) 2)
 
     (check-equal? (~>> 10) 10)
     (check-equal? (~>> 10 (- 1)) -9)
@@ -158,7 +192,8 @@
     (check-equal? (~>> 10 (- 20 _ 2)) 8)
     (check-equal? (~>> 10 (- 20 _ 2 _)) -2)
     (check-equal? (~>> 10 (- (* 2 _) _)) 10)
-    (check-equal? (~>> (* 2 2) (- (* 2 _) _)) 4))
+    (check-equal? (~>> (* 2 2) (- (* 2 _) _)) 4)
+    (check-equal? (~>> (* 2 2) (- (* 2 _) _) (- 2)) -2))
 
   (test-case
     "and~> and ~>>"
@@ -171,4 +206,33 @@
     (check-equal? (and~>> '(1 3 5) (findf odd?) add1) 2)
 
     (check-equal? (and~>  '(1 3 5) (findf even? _) add1) #f)
-    (check-equal? (and~>> '(1 3 5) (findf even?) add1) #f)))
+    (check-equal? (and~>> '(1 3 5) (findf even?) add1) #f))
+
+  (test-case
+    "unhygienic #%app test"
+
+    (check-equal? (let-syntax ([#%app (syntax-rules () [(_ . rest) (list . rest)])])
+                    (~> 1 (2) (3)))
+                  '(3 (2 1)))
+    (check-equal? (let-syntax ([#%app (syntax-rules () [(_ . rest) (list . rest)])])
+                    (~>> 1 (2) (3)))
+                  '(3 (2 1)))
+    (check-equal? (let-syntax ([#%app (syntax-rules () [(_ . rest) (list . rest)])])
+                    (and~> 1 (2) (3)))
+                  '(3 (2 1)))
+    (check-equal? (let-syntax ([#%app (syntax-rules () [(_ . rest) (list . rest)])])
+                    (and~>> 1 (2) (3)))
+                  '(3 (2 1)))
+
+    (check-equal? (let-syntax ( [#%app (syntax-rules () [(_ . rest) (list . rest)])])
+                    (#%plain-app (lambda~> (2) (3)) 1))
+                  '(3 (2 1)))
+    (check-equal? (let-syntax ([#%app (syntax-rules () [(_ . rest) (list . rest)])])
+                    (#%plain-app (lambda~>> (2) (3)) 1))
+                  '(3 (2 1)))
+    (check-equal? (let-syntax ([#%app (syntax-rules () [(_ . rest) (list . rest)])])
+                    (#%plain-app (lambda-and~> (2) (3)) 1))
+                  '(3 (2 1)))
+    (check-equal? (let-syntax ([#%app (syntax-rules () [(_ . rest) (list . rest)])])
+                    (#%plain-app (lambda-and~>> (2) (3)) 1))
+                  '(3 (2 1)))))
