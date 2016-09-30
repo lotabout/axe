@@ -110,6 +110,95 @@ We got result @racket["abc-123-xyz"].
 
 This one is simple. You can replace @racket[#:key] with @racket[:key].
 
+@;--------------------------------------------------------------------
+@subsection[#:tag "app-dict"]{Applicable Dictionary}
+
+Borrowed from @tt{#lang rackjure}, we redefines @racket[#%app] to make dictionaries applicable:
+
+@#reader scribble/comment-reader
+(racketblock
+;; When (dict? d) is #t
+
+(d key)         => (dict-ref d key #f)
+(d key default) => (dict-ref d key default)
+)
+
+Note here that we don't support rackjure's set syntax: @racket[(d key value)].
+We prefer clojure style. You can also use key as a procedure to retrieve the
+contents of a dict:
+
+@#reader scribble/comment-reader
+(racketblock
+(key d)  => (dict-ref d key)
+(key #f) => #f  ; unless (or (procedure? `key`) (dict? `key`))
+)
+
+The reason that @racket[#f] is returned for the @racket[(key #f)] is that we
+can use it together with the threading macro to fetch the contents of nested
+dicts:
+
+@codeblock{
+    (~> dict 'a 'b 'c)
+}
+
+expands to:
+
+@codeblock{
+    ('c ('b ('a dict)))
+}
+
+And is applied as:
+
+@codeblock{
+    (dict-ref (dict-ref (dict-ref dict 'a) 'b) 'c)
+}
+
+@;--------------------------------------------------------------------
+@subsection[#:tag "dict-reader"]{Dictionary initialization with @tt{{}}}
+
+Racket supports writting dict literals as:
+
+@racketblock[
+#hash((k0 . v0) (k1 . v1))
+]
+
+It is straightforward but requires more typing than:
+
+@racketblock[
+{k0 v0 k1 v1 ...}
+]
+
+Especially when typing nested lists:
+
+@racketblock[
+{k0 v0,
+ k1 {key value,
+     key value}}
+]
+
+Note the character @tt{,} is optional here. In @racket[axe] @tt{,} is treated as
+whitespace if followed by other whitespaces. Thus you can use it as a
+delimiter whitespace or use it as @racket[unquote] normally.
+
+Borrowed form rackjure, we provide @racket[current-curly-dict] parameter to
+specify the type of dict it expands to.
+
+@defparam[current-curly-dict v procedure?]{
+    Defaults to @racket[hash]. Can be set to @racket[hasheq] or anything with the
+    same @racket[(f k v ... ...)] signature.
+
+    Examples:
+
+    @codeblock{
+        > (parameterize ([current-curly-dict hasheq])
+           {'k0 0, 'k1 1})
+        '#hasheq((k0 . 0) (k1 . 1))
+        > (parameterize ([current-curly-dict hasheqv])
+           {'k0 0 'k1 1})
+        '#hasheqv((k0 . 0) (k1 . 1))
+    }
+}
+
 @;====================================================================
 @section{Handy Macros}
 
