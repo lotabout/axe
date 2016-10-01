@@ -1,6 +1,9 @@
-#lang s-exp syntax/module-reader
-axe/base
-#:wrapper1 axe-wrapper
-#:language-info #(axe/base/lang/language-info get-language-info #f)
+#lang racket/base
+(provide read read-syntax get-info)
 
-(require "../axe-reader.rkt")
+(require (prefix-in - "reader-no-wrap.rkt")
+         "../axe-reader.rkt")
+
+(define (read in p ln col pos) (axe-wrapper (lambda () (-read in p ln col pos))))
+(define (read-syntax src in p ln col pos) (axe-wrapper (λ () (-read-syntax src in p ln col pos))))
+(define get-info -get-info)

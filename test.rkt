@@ -5,6 +5,8 @@
 ;;;
 (module+ test
   (require rackunit)
+  (require (for-syntax rackunit
+                       racket/set))
 
   (test-case
     "~> threading and applicable dict"
@@ -70,8 +72,27 @@
                   1))
 
   (test-case
+    "#{ } with hygien"
+
+    (check-equal? #{1 2 3} (set 1 2 3))
+    (check-equal? (let ([set 'a])
+                    #{1 2 3})
+                  (set 1 2 3)))
+
+  (test-case
     "quotes should not be parsed in lambda literals"
     (check-equal? (#(list '%2 '%3 '%&))
                   (list '%2 '%3 '%&)))
-  )
+
+  (begin-for-syntax
+    (test-case
+      "phase 1: hygienic test"
+      (check-equal? (let ([lambda "not lambda"]
+                          [define-syntax "not define-syntax"])
+                      (#(+ % 1) 0))
+                    1)
+      (check-equal? (let ([set 'a])
+                      #{1 2 3})
+                    (set 1 2 3)))
+    ))
 

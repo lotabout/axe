@@ -8,35 +8,43 @@
          racket/match
          syntax/parse
          (only-in racket/port input-port-append)
-         (only-in axe/escape pregexp-raw regexp-raw regex-escape-raw))
+         (only-in axe/escape pregexp-raw regexp-raw regex-escape-raw)
+         (only-in version/utils version<=?)
+         (for-meta -10 racket/base racket/set)
+         (for-meta -9 racket/base racket/set)
+         (for-meta -8 racket/base racket/set)
+         (for-meta -7 racket/base racket/set)
+         (for-meta -6 racket/base racket/set)
+         (for-meta -5 racket/base racket/set)
+         (for-meta -4 racket/base racket/set)
+         (for-meta -3 racket/base racket/set)
+         (for-meta -2 racket/base racket/set)
+         (for-meta -1 racket/base racket/set)
+         (for-meta 0 racket/base racket/set)
+         (for-meta 1 racket/base racket/set)
+         (for-meta 2 racket/base racket/set)
+         (for-meta 3 racket/base racket/set)
+         (for-meta 4 racket/base racket/set)
+         (for-meta 5 racket/base racket/set)
+         (for-meta 6 racket/base racket/set)
+         (for-meta 7 racket/base racket/set)
+         (for-meta 8 racket/base racket/set)
+         (for-meta 9 racket/base racket/set)
+         (for-meta 10 racket/base racket/set)
+         (for-meta 11 (only-in racket/base #%app make-rename-transformer syntax))
+         )
 
 (provide make-axe-readtable
-         axe-wrapper)
+         axe-wrapper
+         current-syntax-introducer)
 
 (module+ test
   (require rackunit))
 
-(define-syntax (define-unbindable-ids stx)
-  (syntax-case stx ()
-    [(_ package [name id] ...)
-     (with-syntax ([(gen-id ...)
-                    (for/list ([id (in-list (syntax->list #'(id ...)))])
-                      (string->uninterned-symbol (symbol->string (syntax-e id))))]
-                   [(n ...) (range -10 11)])
-       #'(begin
-           (require (for-meta n (only-in package [id gen-id] ...)) ...)
-           (define name (quote-syntax gen-id))
-           ...))]))
-
-(define-unbindable-ids racket/base
-  [lambda-id lambda]
-  [define-syntax-id define-syntax]
-  [app-id #%app]
-  [make-rename-transformer-id make-rename-transformer]
-  [syntax-id syntax])
-
-(define-unbindable-ids racket/set
-  [set-id set])
+(define current-syntax-introducer
+  (make-parameter
+    (lambda (stx)
+      (error 'current-syntax-introducer "must be used within the axe reader"))))
 
 ;;;=============================================================================
 ;;; Raw strings, regexps
@@ -136,18 +144,16 @@
     (datum->syntax stx datum-kw-formals stx)))
 
 (define (parse-lambda-literal stx)
-  (with-syntax ([lambda lambda-id]
-                [define-syntax define-syntax-id]
-                [app app-id]
-                [make-rename-transformer make-rename-transformer-id]
-                [syntax syntax-id]
-                [args (stx->args stx)]
-                [% (datum->syntax stx '% stx)]
-                [%1 (datum->syntax stx '%1 stx)]
-                [body stx])
-    #`(lambda args
-        (define-syntax % (app make-rename-transformer #'%1))
-        body)))
+  (define intro (current-syntax-introducer))
+  (define stx* (intro stx))
+  (with-syntax ([args (stx->args stx*)]
+                [% (datum->syntax stx* '% stx)]
+                [%1 (datum->syntax stx* '%1 stx)]
+                [body stx*])
+    (intro
+      #'(lambda args
+          (define-syntax % (make-rename-transformer #'%1))
+          body))))
 
 ;;;=============================================================================
 ;;; Build read tables
@@ -186,11 +192,10 @@
          (normal-read-syntax src in)
          (unget-normal-read-syntax "," src in))]
     [(#\{) ; #{1 2 3 4} to read hash set (set 1 2 3 4)
-     (syntax-case (unget-normal-read-syntax "#{" src in) ()
-       [#(e ...)
-        (with-syntax ([set set-id]
-                      [app app-id])
-          #'(app set e ...))])]
+     (define intro (current-syntax-introducer))
+     (define stx* (intro (unget-normal-read-syntax "#{" src in)))
+     (syntax-case stx* ()
+       [#(e ...) (intro #'(set e ...))])]
     [(#\() ; lambda literal #( ... )
      (parse-lambda-literal (unget-normal-read-syntax "(" src in))]
     [(#\f) ; lambda literal #fn( ... )
@@ -222,5 +227,10 @@
 ;; A `#:wrapper1` for `syntax/module-reader`
 (define (axe-wrapper thk)
   (define orig-readtable (current-readtable))
-  (parameterize ([current-readtable (make-axe-readtable orig-readtable)])
-    (thk)))
+  (define intro (make-syntax-introducer))
+  (parameterize ([current-readtable (make-axe-readtable orig-readtable)]
+                 [current-syntax-introducer intro])
+    (define stx (thk))
+    (if (and (syntax? stx) (version<=? "6.2.900.4" (version)))
+        (intro stx)
+        stx)))
