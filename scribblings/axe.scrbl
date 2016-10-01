@@ -1,9 +1,12 @@
 #lang scribble/manual
 @require[scribble/eval
-         @for-label[(except-in axe #%app)]]
+         scribble/bnf
+         scribble-code-examples
+         @for-label[(except-in axe #%app _)]]
 
 @(define axe-eval
    (make-eval-factory '(axe)))
+
 
 @title{#lang axe}
 @author{jinzhouz}
@@ -30,20 +33,44 @@ axe
 ]
 
 With this reader extension, you can compose raw strings just like you did in
-python. The @tt{\\} character is interpreted as raw. But note that @tt{\"} is
-interpreted as @tt{"} in @tt{r"\""} form. The same goes to @tt{'} in
-@tt{r'\''}.
+python. The @litchar{\\} character is interpreted as raw. But note that @litchar{\"} is
+interpreted as @litchar{"} in @litchar{r"\""} form. The same goes to @litchar{'} in
+@litchar{r'\''}.
 
-Note that even with raw string, times would still be hard with regular
-expressions, so now we provide regular expression utilities that work well
-with raw strings.
+Note that even with raw string, there would still some problems building up regular expressions.
+Thus we provide @racket[pregexp-raw] and @racket[regexp-raw] to build regular
+expressions from raw strings.
 
-@racketmod[
-axe
-(regexp-match (pregexp-raw @#,elem{r"(.*)\1"}) "123123")]
+@code-examples[#:lang "axe" #:context #'here #:show-lang-line #t]|{
+(regexp r"(\t*)\1")
+(pregexp-raw r"(\t*)\1")
+}|
 
-i.e. you can build regular expression via @racket[pregexp-raw] with raw
-strings.
+@defform[(regex-escape-raw raw-string)]{
+    Parse the escaped characters in raw strings into. For example If you
+    write @litchar{r"\t"}, it is equivalent to string @racket["\\t"].
+    @racket[regex-escape-raw] will parse it into @racket["\t"]. While raw
+    strings like @racket["\\1"] will be used by @racket[regexp], so it will
+    remains the same.
+
+    @(examples
+      #:eval (axe-eval)
+      (regex-escape-raw "\\a\\b\\t\\n\\1")
+      )
+}
+
+@deftogether[(@defform[(pregexp-raw raw-string)]
+              @defform[(regexp-raw raw-string)]
+              )]{
+
+    It is a wrapper of @racket[regex-escape-raw], so that you can create
+    regular expressions directly from raw strings.
+    @racketblock[
+      (regexp (regex-escape-raw raw-string))
+      (pregexp (regex-escape-raw raw-string))
+    ]
+}
+
 
 @;--------------------------------------------------------------------
 @subsection[#:tag "raw-regexp"]{Raw regexp}
@@ -56,23 +83,22 @@ axe
 ]
 
 Typing regular expressions could be difficult in racket. In python, we can write
-a regular expression in raw mode: @tt{r"(\t*)\1"}. When translated into racket,
-we have @tt{#px"(\t*)\\1"}. Note that we need to add another @tt{\} character to
-escape @tt{\\1}.
+a regular expression in raw mode: @litchar{r"(\t*)\1"}. When translated into racket,
+we have @litchar{#px"(\t*)\\1"}. Note that we need to add another @litchar{\} character to
+escape @litchar{\\1}.
 
-It is inconvenient. Luckily we have @tt{#lang at-exp} so that we can do things
+It is inconvenient. Luckily we have @litchar{#lang at-exp} so that we can do things
 like this:
 
-@racketmod[
-at-exp racket/base
-(regexp-match @#,elem{@tt["@"]@racket[regexp]@racketparenfont["{"](.*)\1@racketparenfont["}"]} "123123")]
+@code-examples[#:lang "at-exp racket/base" #:context #'here #:show-lang-line #t]|{
+(regexp-match @regexp{(.*)\1} "123123")
+}|
 
-reports @racket['("123123" "123")]
 
-@tt{\1} is one example that you do NOT want something to be escaped by racket
-reader. But sometimes you do need it: such as when type @tt{@"@"px"\t"}, you
+@litchar{\1} is one example that you do NOT want something to be escaped by racket
+reader. But sometimes you do need it: such as when type @litchar{@"@"px"\t"}, you
 actually wants to match the @racket[#\tab]. If we use at-exp for it, it will
-treat @tt{\t} as two characters: @tt{\\} and @tt{t}. Which will not be
+treat @litchar{\t} as two characters: @litchar{\\} and @litchar{t}. Which will not be
 recognized as @racket[#\tab] character in racket's @racket{pregexp} compiler,
 nor @racket{regexp} of course.
 
@@ -84,7 +110,7 @@ axe
 ]
 
 reports @racket['("\t\t" "\t")]. That means the you can write raw regexp and
-enclose it with @tt{#px/} and @tt{/}. The same goes to @tt{#rx/raw/}
+enclose it with @litchar{#px/} and @litchar{/}. The same goes to @litchar{#rx/raw/}
 
 The "raw regexp string" is like raw regular expressions, but they can be used
 as replace string in @racket[regexp-replace]. The following two forms are equal:
@@ -96,7 +122,7 @@ axe
 (pregexp @#,elem{r/(\t*)\1/})
 ]
 
-And the @tt{r/raw regex string/} can be use where regexp strings are needed:
+And the @litchar{r/raw regex string/} can be use where regexp strings are needed:
 
 @racketmod[
 axe
@@ -113,7 +139,7 @@ This one is simple. You can replace @racket[#:key] with @racket[:key].
 @;--------------------------------------------------------------------
 @subsection[#:tag "app-dict"]{Applicable Dictionary}
 
-Borrowed from @tt{#lang rackjure}, we redefines @racket[#%app] to make dictionaries applicable:
+Borrowed from @litchar{#lang rackjure}, we redefines @racket[#%app] to make dictionaries applicable:
 
 @#reader scribble/comment-reader
 (racketblock
@@ -176,7 +202,7 @@ Especially when typing nested lists:
      key value}}
 ]
 
-Note the character @tt{,} is optional here. In @racket[axe] @tt{,} is treated as
+Note the character @litchar{,} is optional here. In @racket[axe] @litchar{,} is treated as
 whitespace if followed by other whitespaces. Thus you can use it as a
 delimiter whitespace or use it as @racket[unquote] normally.
 
@@ -189,15 +215,78 @@ specify the type of dict it expands to.
 
     Examples:
 
-    @codeblock{
-        > (parameterize ([current-curly-dict hasheq])
+    @code-examples[#:lang "axe" #:context #'here]|{
+        (parameterize ([current-curly-dict hasheq])
            {'k0 0, 'k1 1})
-        '#hasheq((k0 . 0) (k1 . 1))
-        > (parameterize ([current-curly-dict hasheqv])
+        (parameterize ([current-curly-dict hasheqv])
            {'k0 0 'k1 1})
-        '#hasheqv((k0 . 0) (k1 . 1))
-    }
+    }|
 }
+
+@;--------------------------------------------------------------------
+@subsection[#:tag "lambda-literal"]{Lambda literals}
+
+Thanks to
+@hyperlink["http://docs.racket-lang.org/rackjure/index.html#%28part._func-lit%29"
+"rackjure"] and @hyperlink["http://docs.racket-lang.org/curly-fn/index.html"
+"curly-fn"] for the idea and implementation.
+
+The clojure reader lets us to define function literals through:
+
+@racketblock[
+#(+ % %2)
+]
+
+It is equivalent to this in clojure:
+
+@racketblock[
+(fn [% %2] (+ % %2))
+]
+
+Or in racket:
+
+@racketblock[
+(λ (% %2) (+ % %2))
+(lambda (% %2) (+ % %2))
+]
+
+In the @racket[#(...)] form, arguments are denoted using identifiers prefixed
+with @litchar{%}.
+
+@itemlist[
+ @item{@litchar{%} @kleeneplus{@nonterm{digit}} is a positional argument.}
+ @item{@litchar{%} on its own is an alias for @litchar{%1}.}
+ @item{@litchar{%&} is a rest argument.}
+ @item{@litchar{%:} @nonterm{id} is a keyword argument.}]
+
+Racket uses @litchar{#( )} for vector literals by default. It is overwritten
+by @racket[axe]. You can use @litchar{#[ ]} for that if needed.  Besides,
+@racket[axe] provides other forms for lambda literals: @litchar{#fn()},
+@litchar{#λ( )} and @litchar{#lambda( )}.
+
+@code-examples[#:lang "axe" #:context #'here]|{
+(map #(+ 1 %) '(1 2 3))
+(map #fn(+ % %2) '(1 2 3) '(1 2 3))
+(#lambda(apply list* % %&) 1 '(2 3))
+(#(* 1/2 %:m (* %:v %:v)) #:m 2 #:v 1)
+(#(* 1/2 %:m (* %:v %:v)) :m 2 :v 1)
+(#(begin %2) 'ignored 'used)
+}|
+
+Remember in the above example, we use @litchar{:m} to replace @litchar{#:m},
+see @secref{quick-keyword}.
+
+There are some pitfalls about lambda literals that normally you should not
+care about:
+
+@itemlist[
+ @item{Nested lambda literals are not supported, the @litchar{#( ... )} will
+ be treated as vectors as it is in racket. Other forms such as @litchar{#fn( ... )} will cause error.}
+ @item{It is safe to write @racket['%] and its variants, but not @racket[`%].
+ That means quoted @litchar{%} is not treated as argument but not the
+ quasiquote.}
+ @item{You should not use it to write complicated functions. It will be hard to read, use lambda instead.}
+]
 
 @;====================================================================
 @section{Handy Macros}
