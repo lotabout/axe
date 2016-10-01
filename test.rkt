@@ -7,6 +7,13 @@
   (require rackunit)
 
   (test-case
+    "~> threading and applicable dict"
+
+    (check-equal? (~> {'a {'b {'c 10}}} 'a 'b 'c) 10)
+    (check-equal? (~> 'a {'a 10}) 10)
+    (check-equal? (~> 'a {'a {'b 10}} 'b) 10))
+
+  (test-case
     "lambda literal #(...): normal usage"
 
     (check-equal? (map #(+ % 1) '(1 2 3)) '(2 3 4))

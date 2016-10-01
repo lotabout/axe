@@ -339,6 +339,11 @@ You can also change the symbol for place holder to any identifier you like:
      (apply + %)
      (- 20 (* % 2))))
 
+Finally, we have some litte hack in threading macro, now you can NOT use
+@litchar{[...]} or @litchar{{...}} to represent function applications. But we
+already use @litchar{{...}} for dictionaries, so hope it won't be too strange
+for you.
+
 @defform[(~> expr clause ...)]{
     Threads @emph{expr} through @emph{clause}. Insert @emph{expr} as the
     @bold{second} item in the first @emph{clause}. @racket[(~> expr (function arg))]

@@ -79,6 +79,7 @@
        #'(let ([new-val val])
            (arrow (syntax-parameterize ([_ (make-rename-transformer #'new-val)]) app/ctx)
                   more ...))])])
+
 (define-for-syntax (ensure-placeholder stx #:pos [pos 'front])
   (syntax-parse stx
     #:literals (quote quasiquote)
@@ -88,6 +89,8 @@
          #'(e data ...)
          #'((e data ...) _))]
     [(e:expr arg ...)
+     #:when (let ([paren-shape (syntax-property stx 'paren-shape)])
+              (or (not paren-shape) (eq? paren-shape #\()))
      (if (contains-placeholder? #'(e arg ...))
          #'(e arg ...)
          (if (eq? pos 'front)
@@ -95,17 +98,14 @@
              #'(e arg ... _)))]
     [data #'(data _)]))
 
-(begin-for-syntax
-
-
-  (define (contains-placeholder? stx)
-    (with-handlers ([exn:fail:syntax:placeholder? (lambda (x) #t)]
-                    [(lambda (x) #t) (lambda (x) #f)])
-      (local-expand (with-syntax ([body stx])
-                      #'(syntax-parameterize ([_ default-placeholder])
-                                             body))
-                    'expression '())
-      #f)))
+(define-for-syntax (contains-placeholder? stx)
+  (with-handlers ([exn:fail:syntax:placeholder? (lambda (x) #t)]
+                  [(lambda (x) #t) (lambda (x) #f)])
+    (local-expand (with-syntax ([body stx])
+                    #'(syntax-parameterize ([_ default-placeholder])
+                                           body))
+                  'expression '())
+    #f))
 
 ;;; some wrappers over ~> and ~>>
 
