@@ -82,9 +82,9 @@
 
 (define-for-syntax (ensure-placeholder stx #:pos [pos 'front])
   (syntax-parse stx
-    #:literals (quote quasiquote)
+    #:literals (quote quasiquote lambda)
     [(~or e:id e:keyword) #'(e _)]
-    [((~or e:quote e:quasiquote) data ...)
+    [((~or e:quote e:quasiquote e:lambda) data ...)
      (if (contains-placeholder? #'(e data ...))
          #'(e data ...)
          #'((e data ...) _))]
@@ -207,6 +207,19 @@
 
     (check-equal? (and~>  '(1 3 5) (findf even? _) add1) #f)
     (check-equal? (and~>> '(1 3 5) (findf even?) add1) #f))
+
+  (test-case
+    "~> and lambda"
+
+    (check-equal? (~> 10 (lambda (x) (+ x 10))) 20)
+    (check-equal? (~> 10 (lambda (x) (+ x 10)) (lambda (x) (* x x))) 400)
+
+    (check-equal? ((~> 10 (lambda (x) (- x _))) 20) 10)
+    (check-equal? (~> 10 (lambda (x) (- x _)) (_ 20)) 10)
+
+    (check-equal? (let ([lambda -]) (~> 10 (lambda 1 _))) -9)
+    (check-equal? (let ([lambda -]) (~> 10 (lambda 1))) 9)
+  )
 
   (test-case
     "unhygienic #%app test"

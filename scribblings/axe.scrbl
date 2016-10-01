@@ -339,6 +339,33 @@ You can also change the symbol for place holder to any identifier you like:
      (apply + %)
      (- 20 (* % 2))))
 
+Threading macro in @racket[axe] will handle @racket[lambda] well, so that the
+following example works correctly.
+
+@(interaction
+#:eval (axe-eval)
+(~> 10 (lambda (x) (- x 1)))
+(~> 10 (lambda (x) (- x 1)) (lambda (x) (* x x)))
+)
+
+
+If the placeholder @litchar{_} is included in the body of @racket[lambda]
+expression, the @racket[~>] macro will instead replace the placeholder with
+the result of previous "pipeline" and generate a new lambda function.
+
+@#reader scribble/comment-reader
+(racketblock
+(~> 10 (lambda (x) (- x 1))) => ((lambda (x) (- x 1)) 10)
+(~> 10 (lambda (x) (- x _))) => (lambda (x) (- x 10))
+)
+
+So that you can do the following:
+
+@(interaction
+#:eval (axe-eval)
+((~> 10 (lambda (x) (- x _))) 1)
+)
+
 Finally, we have some litte hack in threading macro, now you can NOT use
 @litchar{[...]} or @litchar{{...}} to represent function applications. But we
 already use @litchar{{...}} for dictionaries, so hope it won't be too strange

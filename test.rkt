@@ -14,6 +14,17 @@
     (check-equal? (~> 'a {'a {'b 10}} 'b) 10))
 
   (test-case
+    "~> and lambda literal"
+
+    (check-equal? (~> 10 #(+ % 10)) 20)
+    (check-equal? (~> 10 #(+ % 10) #(* % %)) 400)
+
+    (check-equal? ((~> 10 #(- % _)) 20) 10)
+    (check-equal? (~> 10 #(- % _) (_ 20)) 10)
+
+    (check-equal? (let ([lambda -]) (~> 10 #(+ % 10))) 20))
+
+  (test-case
     "lambda literal #(...): normal usage"
 
     (check-equal? (map #(+ % 1) '(1 2 3)) '(2 3 4))
