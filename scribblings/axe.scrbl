@@ -453,3 +453,68 @@ The @hyperlink["https://docs.racket-lang.org/threading/index.html"
 rackjure do not support placeholder and threading module do not support
 placeholder in nested function calls like @racket[(~> expr (fun1 (func2 _
 arg)))].
+
+@;====================================================================
+@section{Utility Functions}
+
+@;--------------------------------------------------------------------
+@subsection[#:tag "dictionary"]{Dictionary}
+
+@defmodule[axe/dict]
+
+@racket[axe] provide some wrappers over the dictionary related functions
+provided by @racket[racket/dict].
+
+@defproc[(dict-extend [dict (and/c dict? immutable?)] [key any/c] [value any/c] ...)
+         (and/c dict? immutable?)]{
+Iterate over all the key-value pairs and update the dictionary accordingly.
+
+@(examples
+#:eval (axe-eval)
+(dict-extend '((a . 1)) 'b 2 'a 3)
+(dict-extend #hash() 'a 1 'b 2 'a 3)
+)}
+
+@defproc[(dict-extend! [dict (and/c dict? (not/c immutable?))] [key any/c] [value any/c] ...)
+         (and/c dict? (not/c immutable?))]{
+
+The mutable version of @racket[dict-extend].
+
+@(examples
+#:eval (axe-eval)
+(dict-extend! (make-hash) 'b 2 'a 3)
+)}
+
+@deftogether[(
+@defproc[(dict-merge [d0 (and/c dict? immutable?)] [d1 dict?] ...)
+         (and/c dict? immutable?)]
+@defproc[(dict-merge! [d0 (and/c dict? (not/c immutable?))] [d1 dict?] ...)
+         (and/c dict? (not/c immutable?))]
+)]{
+Merge several dicts into @tt{d0}. @racket[dict-merge!] is the mutable version.
+
+@(examples
+#:eval (axe-eval)
+(dict-merge '((a . 1)) '((b . 2) (c . 3)) '((a . 4) (c . 5)))
+(define d (make-hash '((a . 1))))
+(dict-merge! d '((b . 2) (c . 3)) #hash((a . 4) (c . 5)))
+d
+)}
+
+
+@deftogether[(
+@defproc[(dict-merge-with [f (any/c any/c . -> . any/c)] [d0 (and/c dict? immutable?)] [d1 dict?] ...)
+         (and/c dict? immutable?)]
+@defproc[(dict-merge-with! [f (any/c any/c . -> . any/c)] [d0 (and/c dict? (not/c immutable?))] [d1 dict?] ...)
+         (and/c dict? (not/c immutable?))]
+)]{
+Like @racket[dict-merge] and @racket[dict-merge!]. But when both dicts contain
+the same key, merge function @tt{f} is called with arguments the value in the
+old dict and value in the new dict.
+
+@(examples
+#:eval (axe-eval)
+(dict-merge-with list #hash((a . 1)) '((b . 2) (c . 3)) '((a . 4) (c . 5)))
+(dict-merge-with - '((a . 5)) '((b . 2) (c . 3)) '((a . 4) (c . 5)))
+)
+}

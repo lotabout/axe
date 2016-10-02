@@ -31,14 +31,18 @@
          "threading.rkt"
          "escape.rkt"
          "app.rkt"
-         "conditionals.rkt")
+         "conditionals.rkt"
+         "dict.rkt"
+         )
 
 (provide (except-out (all-from-out racket) #%app)
          (rename-out [-#%app #%app])
          (except-out (all-from-out "app.rkt") -#%app)
          (all-from-out "threading.rkt")
          (all-from-out "escape.rkt")
-         (all-from-out "conditionals.rkt"))
+         (all-from-out "conditionals.rkt")
+         (all-from-out "dict.rkt")
+         )
 
 (module+ test
   ;; Tests to be run with raco test
