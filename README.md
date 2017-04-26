@@ -1,5 +1,5 @@
 # #lang axe
-Handy utilities for racket
+Handy utilities for racket(>= 6.5)
 
 Documentation: [axe](http://docs.racket-lang.org/axe/index.html).
 
