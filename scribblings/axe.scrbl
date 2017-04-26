@@ -454,6 +454,76 @@ rackjure do not support placeholder and threading module do not support
 placeholder in nested function calls like @racket[(~> expr (fun1 (func2 _
 arg)))].
 
+@;--------------------------------------------------------------------
+@subsection[#:tag "conditionals"]{Conditionals}
+@defmodule[axe/conditionals]
+
+This module provides alternatives to built in @racket[if], @racket[when] and @racket[cond].
+
+@defform[(if-let [binding-expr test-expr] then-expr else-expr)]{
+    combines @racket[if] and @racket[match-let]:
+    @racketblock[
+    (let ([val test-expr])
+     (if val
+         (match-let ([binding-expr test-expr])
+           then-expr)
+         else-expr))]
+}
+
+@defform[(when-let [binding-expr test-expr] body ...+)]{
+    combines @racket[when] and @racket[match-let]:
+    @racketblock[
+    (let ([val test-expr])
+     (when val
+         (match-let ([binding-expr test-expr])
+           body ...)))]
+}
+
+@defform[(if-not test-expr then-expr else-expr)]{
+    shotcut for:
+    @racketblock[
+    (if (not test-expr)
+        then-expr
+        else-expr)]
+}
+
+@defform[(when-not test-expr body ...+)]{
+    Just another implementation of @racket[unless]. To make it consistent in the wording.
+    @racketblock[
+    (when (not test-expr)
+        body ...+)]
+}
+
+
+@defform/subs[#:literals (else =>)
+              (cond-let binding-expr cond-clause ...)
+              ([cond-clause [test-expr then-body ...+]
+                            [else then-body ...+]
+                            [test-expr => proc-expr]
+                            [test-expr]])]{
+    As you can see in the signature, it is almost identical to the built in
+    @racket[cond], except it allows an @tt{binding-expr} for the test-expr,
+    so that in the @tt{then-body} for @tt{proc-expr}, you can refer to the
+    result of @tt{test-expr} with it.
+
+    @(examples
+      #:eval (axe-eval)
+      (let ([lst '(x y z a b c)])
+        (cond-let it
+          [(member 'a lst) (length it)]
+          [else 0])))
+
+    @racket[match-let] pattern can be applied to descruct the values:
+    @(examples
+      #:eval (axe-eval)
+      (let ([dct #hasheq((a . #f) (b . (1 2)) (c . (10 20)))])
+        (cond-let (list a b)
+          [(dict-ref dct 'a) (+ a b)]
+          [(dict-ref dct 'b) (- a b)]
+          [(dict-ref dct 'c) (* a b)]
+          [else 0])))
+}
+
 @;====================================================================
 @section{Utility Functions}
 
@@ -461,6 +531,10 @@ arg)))].
 @subsection[#:tag "dictionary"]{Dictionary}
 
 @defmodule[axe/dict]
+
+Note that you should definitely checkout
+@secref["collections-intro" #:doc '(lib "scribblings/data/collection/collections.scrbl")]
+which provides a generic interface for all racket collections. It is better than this one.
 
 @racket[axe] provide some wrappers over the dictionary related functions
 provided by @racket[racket/dict].
