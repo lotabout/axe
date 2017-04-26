@@ -22,27 +22,27 @@
   (if (not test) then else))
 
 (module+ test
-  (check-exn #rx"expected more terms starting with \"test\" condition"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (if-not))))
 
-  (check-exn #rx"expected more terms starting with \"then\" clause"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (if-not #t))))
 
-  (check-exn #rx"expected more terms starting with \"else\" clause"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (if-not #t #t))))
 
-  (check-exn #rx"expected more terms starting with \"else\" clause"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (if-not #t #t))))
 
-  (check-exn #rx"unexpected term"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (if-not #t #t #t #t))))
@@ -60,32 +60,32 @@
     (if val (match-let ([binding val]) then) else)))
 
 (module+ test
-  (check-exn #rx"expected more terms starting with binding pairs"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (if-let))))
 
-  (check-exn #rx"expected more terms starting with expression"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (if-let []))))
 
-  (check-exn #rx"expected more terms starting with expression"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (if-let [a]))))
 
-  (check-exn #rx"expected more terms starting with \"then\" clause"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (if-let [a #t]))))
 
-  (check-exn #rx"expected more terms starting with \"else\" clause"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (if-let [a #t] 'true))))
 
-  (check-exn #rx"unexpected term"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (if-let [a #t] 'true 'false 'extra))))
@@ -95,7 +95,7 @@
                         (fail "if-let: wrong-branch"))
                 '(1 2 3))
 
-  (check-exn #rx"unbound identifier"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (if-let [it #f]
@@ -114,12 +114,12 @@
   (when (not test) body ...))
 
 (module+ test
-  (check-exn #rx"expected more terms starting with \"test\" condition"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (when-not))))
 
-  (check-exn #rx"expected more terms starting with expression"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (when-not #t))))
@@ -137,22 +137,22 @@
     (when val (match-let ([binding val]) body ...))))
 
 (module+ test
-  (check-exn #rx"expected more terms starting with binding pairs"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (when-let))))
 
-  (check-exn #rx"expected more terms starting with expression"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (when-let []))))
 
-  (check-exn #rx"expected more terms starting with expression"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (when-let [a]))))
 
-  (check-exn #rx"expected more terms starting with expression"
+  (check-exn exn:fail:syntax?
              (lambda ()
                (convert-compile-time-error
                 (when-let [a #t]))))
@@ -208,37 +208,37 @@
 
 (module+ test
   ;; syntax error
-  (check-exn #rx"bad syntax \\(clause is not a test-value pair\\)"
+  (check-exn exn:fail?
              (lambda ()
                (convert-compile-time-error
                 (cond-let it ())))
              "invalid test-value should trigger compile error")
 
-  (check-exn #rx".*bad syntax \\(clause is not a test-value pair\\).*"
+  (check-exn exn:fail?
              (lambda ()
                (convert-compile-time-error
                 (cond-let it () ())))
              "invalid test-value should trigger compile error")
 
-  (check-exn #rx"bad syntax \\(`else' clause must be the last\\)"
+  (check-exn exn:fail?
              (lambda ()
                (convert-compile-time-error
                 (cond-let it (else) ())))
              "non-last \"else\" caluse should trigger error")
 
-  (check-exn #rx"bad syntax \\(bad clause form with =>\\)"
+  (check-exn exn:fail?
              (lambda ()
                (convert-compile-time-error
                 (cond-let it (#t =>))))
              "invalid \"=>\" clause should trigger error")
 
-  (check-exn #rx"bad syntax \\(bad clause form with =>\\)"
+  (check-exn exn:fail?
              (lambda ()
                (convert-compile-time-error
                 (cond-let it (#t => + -))))
              "invalid \"=>\" clause should trigger error")
 
-  (check-exn #rx"bad syntax \\(bad clause form with =>\\)"
+  (check-exn exn:fail?
              (lambda ()
                (convert-compile-time-error
                 (cond-let it (#t => + -) ())))
@@ -260,7 +260,7 @@
                [else (fail "cond-let: wrong branch")]))
    '(b c))
 
-  (check-exn #rx"unbound identifier"
+  (check-exn exn:fail:syntax?
    (let ([lst '(x y z a b c)])
      (lambda ()
        (convert-compile-time-error
