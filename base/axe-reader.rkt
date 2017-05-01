@@ -52,6 +52,42 @@
 (define regex-raw-double-quote #px"\"((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)(?:(?<!\\\\)\"|(?<=\\\\\\\\)\")")
 (define regex-raw-single-quote #px"'((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)(?:(?<!\\\\)'|(?<=\\\\\\\\)')")
 (define regex-raw-slash #px"((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)(?:(?<!\\\\)/|(?<=\\\\\\\\)/)")
+(define regex-raw-three-double-quote #px"\"\"\"((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)\"\"\"")
+(define regex-raw-three-single-quote #px"\'\'\'((?:\\\\.|(?<!\\\\).|\\\\\\\\)*?)\'\'\'")
+
+(module+ test
+  (test-case "regex-raw-double-quote"
+    (check-equal? (regexp-match regex-raw-double-quote "r\"a\"") (list "\"a\"" "a"))
+    (check-equal? (regexp-match regex-raw-double-quote "r\"\"") (list "\"\"" ""))
+    (check-equal? (regexp-match regex-raw-double-quote "r\"\"\"") (list "\"\"" ""))
+    (check-equal? (regexp-match regex-raw-double-quote "r\"\\\\\"") (list "\"\\\\\"" "\\\\"))
+    (check-equal? (regexp-match regex-raw-double-quote "r\"\\\"\"") (list "\"\\\"\"" "\\\""))
+    (check-equal? (regexp-match regex-raw-double-quote "r\"\\\\t\"") (list "\"\\\\t\"" "\\\\t"))
+    (check-equal? (regexp-match regex-raw-double-quote "r\"\\t\"") (list "\"\\t\"" "\\t")))
+  (test-case "regex-raw-single-quote"
+    (check-equal? (regexp-match regex-raw-single-quote "r'a'") (list "'a'" "a"))
+    (check-equal? (regexp-match regex-raw-single-quote "r''") (list "''" ""))
+    (check-equal? (regexp-match regex-raw-single-quote "r'''") (list "''" ""))
+    (check-equal? (regexp-match regex-raw-single-quote "r'\\\\'") (list "'\\\\'" "\\\\"))
+    (check-equal? (regexp-match regex-raw-single-quote "r'\\\''") (list "'\\\''" "\\\'"))
+    (check-equal? (regexp-match regex-raw-single-quote "r'\\\\t'") (list "'\\\\t'" "\\\\t"))
+    (check-equal? (regexp-match regex-raw-single-quote "r'\\t'") (list "'\\t'" "\\t")))
+  (test-case "regex-raw-three-double-quote"
+    (check-equal? (regexp-match regex-raw-three-double-quote "r\"\"\"a\"\"\"") (list "\"\"\"a\"\"\"" "a"))
+    (check-equal? (regexp-match regex-raw-three-double-quote "r\"\"\"\"\"\"") (list "\"\"\"\"\"\"" ""))
+    (check-equal? (regexp-match regex-raw-three-double-quote "r\"\"\"\"\"\"\"") (list "\"\"\"\"\"\"" ""))
+    (check-equal? (regexp-match regex-raw-three-double-quote "r\"\"\"\\\\\"\"\"") (list "\"\"\"\\\\\"\"\"" "\\\\"))
+    (check-equal? (regexp-match regex-raw-three-double-quote "r\"\"\"\\\"\"\"\"") (list "\"\"\"\\\"\"\"\"" "\\\""))
+    (check-equal? (regexp-match regex-raw-three-double-quote "r\"\"\"\\\\t\"\"\"") (list "\"\"\"\\\\t\"\"\"" "\\\\t"))
+    (check-equal? (regexp-match regex-raw-three-double-quote "r\"\"\"\\t\"\"\"") (list "\"\"\"\\t\"\"\"" "\\t")))
+  (test-case "regex-raw-three-single-quote"
+    (check-equal? (regexp-match regex-raw-three-single-quote "r'''a'''") (list "'''a'''" "a"))
+    (check-equal? (regexp-match regex-raw-three-single-quote "r''''''") (list "''''''" ""))
+    (check-equal? (regexp-match regex-raw-three-single-quote "r'''''''") (list "''''''" ""))
+    (check-equal? (regexp-match regex-raw-three-single-quote "r'''\\\\'''") (list "'''\\\\'''" "\\\\"))
+    (check-equal? (regexp-match regex-raw-three-single-quote "r'''\\''''") (list "'''\\''''" "\\'"))
+    (check-equal? (regexp-match regex-raw-three-single-quote "r'''\\\\t'''") (list "'''\\\\t'''" "\\\\t"))
+    (check-equal? (regexp-match regex-raw-three-single-quote "r'''\\t'''") (list "'''\\t'''" "\\t"))))
 
 (define (read-regexp-str-raw src in)
   (define raw-string (bytes->string/locale (cadr (regexp-match regex-raw-slash in))))
@@ -72,6 +108,15 @@
       (cadr (regexp-match
               (if (eqv? quote-char #\") regex-raw-double-quote regex-raw-single-quote) in))))
   (values (restore-escaped-char raw-string quote-char) (+ 2 (string-length raw-string))))
+
+;;; read string: r'''raw string''' or r"""raw string"""
+;;; read-raw-string-three-quotes: (quote-char src in) -> (data, span)
+(define (read-raw-string-three-quotes quote-char src in)
+  (define raw-string
+    (bytes->string/locale
+      (cadr (regexp-match
+              (if (eqv? quote-char #\") regex-raw-three-double-quote regex-raw-three-single-quote) in))))
+  (values (restore-escaped-char raw-string quote-char) (+ 6 (string-length raw-string))))
 
 ;;; In raw string, we use `\` to escape the delimiter, for example r"\"".
 ;;; That means we should omit the `\` in r"\"".
@@ -177,7 +222,9 @@
   ; real logic for handling characters
   (case ch
     [(#\r)  ; read raw string
-     (cond [(or (eqv? (peek-char in) #\') (eqv? (peek-char in) #\"))
+     (cond [(or (equal? (peek-string 3 0 in) "\"\"\"") (equal? (peek-string 3 0 in) "'''"))
+            (wrap-reader (curry read-raw-string-three-quotes (peek-char in)))]
+           [(or (eqv? (peek-char in) #\') (eqv? (peek-char in) #\"))
             (wrap-reader (curry read-raw-string (peek-char in)))]
            [(peek/read? "/" in) (wrap-reader read-regexp-str-raw)]
            [(peek/read? "x/" in) (wrap-reader read-regexp-raw)]
