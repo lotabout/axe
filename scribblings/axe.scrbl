@@ -32,14 +32,41 @@ axe
 @#,elem{r'raw string'}
 ]
 
-With this reader extension, you can compose raw strings just like you did in
-python. The @litchar{\\} character is interpreted as raw. But note that @litchar{\"} is
-interpreted as @litchar{"} in @litchar{r"\""} form. The same goes to @litchar{'} in
-@litchar{r'\''}.
+This syntax is borrowed from Python. If the string literals you are trying to
+write contains lots of (mixed) quotes, or escaped forms, raw string can help a lot.
 
-Note that even with raw string, there would still some problems building up regular expressions.
-Thus we provide @racket[pregexp-raw] and @racket[regexp-raw] to build regular
-expressions from raw strings.
+For example if we want to match a single digit we have to compose regular
+expression: @racket[(pregexp "\\d")]. Note that we have to write @litchar{\\} to
+make racket's reader happy and make us unhappy.
+
+With this reader extension, the @litchar{\\} character is interpreted as
+raw. But note that @litchar{\"} is interpreted as @litchar{"} in @litchar{r"\""}
+form. The same goes to @litchar{'} in @litchar{r'\''}.
+
+@code-examples[#:lang "axe" #:context #'here #:show-lang-line #t]|{
+(list r'\t\a\b\c\d\1 \'quote\'')
+}|
+
+If your your string contains lots of mixed quotes, the three quotes version
+might be more convenient:
+@racketmod[
+axe
+@#,elem{r"""raw string"""}
+@#,elem{r'''raw string'''}
+]
+
+Here's an example:
+@code-examples[#:lang "axe" #:context #'here #:show-lang-line #t]|{
+(list r'''mixe 'single quote' with "double quote""''')
+}|
+
+Note that @litchar{"""} or @litchar{''''} are matched eagerly. So that in
+@litchar{r"""ends with""""}, racket will treat the last quote as the begin of
+another quoted string.
+
+Now we have an easy way to read in raw strings, we still got some troubles
+building up regular expressions. Thus we provide @racket[pregexp-raw] and
+@racket[regexp-raw] to build up regular expressions from raw strings.
 
 @code-examples[#:lang "axe" #:context #'here #:show-lang-line #t]|{
 (regexp r"(\t*)\1")
