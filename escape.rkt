@@ -57,7 +57,8 @@
 ;;; "\\d\\t" -> "\\d\t"
 ;;; because "\\t" can be read by racket reader into string "\t", however "\\d" is not recognized.
 (define (regex-escape-raw str)
-  (read (open-input-string (wrap-escape str))))
+  (parameterize ([current-readtable #f])
+    (read (open-input-string (wrap-escape str)))))
 
 (module+ test
   (check-equal? (regex-escape-raw "\\a\\b\\t\\n\\v\\f\\r\\e\\x64\\u4e2d\\U4e2d")
