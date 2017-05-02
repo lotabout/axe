@@ -26,22 +26,27 @@
 
 ;; Code here
 
+(require racket/require)
 
-(require (except-in racket _) ; `_` will be used in axe/threading
+(require (except-in (subtract-in racket data/collection) _)  ; `_` will be used in axe/threading
+         "app.rkt"
+         data/collection
          "threading.rkt"
          "escape.rkt"
-         "app.rkt"
          "conditionals.rkt"
          "dict.rkt"
+         (for-syntax racket/base)
          )
 
 (provide (except-out (all-from-out racket) #%app)
          (rename-out [-#%app #%app])
          (except-out (all-from-out "app.rkt") -#%app)
+         (all-from-out data/collection)
          (all-from-out "threading.rkt")
          (all-from-out "escape.rkt")
          (all-from-out "conditionals.rkt")
          (all-from-out "dict.rkt")
+         (for-syntax (all-from-out racket/base))
          )
 
 (module+ test

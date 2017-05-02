@@ -1,8 +1,7 @@
 #lang scribble/manual
 @require[scribble/eval
          scribble/bnf
-         scribble-code-examples
-         @for-label[(except-in axe #%app _)]]
+         scribble-code-examples]
 
 @(define axe-eval
    (make-eval-factory '(axe)))
@@ -11,19 +10,24 @@
 @title{#lang axe}
 @author{jinzhouz}
 
-
 Some handy tools that you might need. Just like the axe in your hand. @hyperlink["https://github.com/lotabout/axe" "Source"]
 
 @[table-of-contents]
 
 @defmodulelang[axe]
+
+@itemlist[
+  @item{@tt{#lang axe} export all identifiers from @tt{#lang racket}. Thus you can
+        safely replace @tt{#lang racket} with @tt{#lang axe}.}
+  @item{@tt{#lang axe} re-exports lexi-lambda's @secref["top" #:doc '(lib
+        "scribblings/data/collection/collections.scrbl")] which provides a generic
+        interface for all racket collections.}
+]
+
 @;====================================================================
 @section{Reader Extension}
 
-Reader extension is enabled by @tt{#lang axe} which also export all
-identifiers from @tt{#lang racket}. Thus you can safely replace @tt{#lang
-racket} with @tt{#lang axe}.
-
+Reader extension is enabled by the @tt{#lang axe} line on the top of your source file.
 @;--------------------------------------------------------------------
 @subsection[#:tag "raw-string"]{Raw String}
 @racketmod[
@@ -292,8 +296,8 @@ by @racket[axe]. You can use @litchar{#[ ]} for that if needed.  Besides,
 @litchar{#λ( )} and @litchar{#lambda( )}.
 
 @code-examples[#:lang "axe" #:context #'here]|{
-(map #(+ 1 %) '(1 2 3))
-(map #fn(+ % %2) '(1 2 3) '(1 2 3))
+(sequence->list (map #(+ 1 %) '(1 2 3)))
+(sequence->list (map #fn(+ % %2) '(1 2 3) '(1 2 3)))
 (#lambda(apply list* % %&) 1 '(2 3))
 (#(* 1/2 %:m (* %:v %:v)) #:m 2 #:v 1)
 (#(* 1/2 %:m (* %:v %:v)) :m 2 :v 1)
@@ -424,12 +428,12 @@ for you.
       #:eval (axe-eval)
       (and~> '(2 4 5)
        (map add1 _)
-       (findf even? _)
+       (index-where even?)
        (* 2))
 
       (and~> '(2 4 6)
        (map add1 _)
-       (findf even? _)
+       (index-where even?)
        (* 2)))
 }
 
@@ -559,9 +563,7 @@ This module provides alternatives to built in @racket[if], @racket[when] and @ra
 
 @defmodule[axe/dict]
 
-Note that you should definitely checkout
-@secref["collections-intro" #:doc '(lib "scribblings/data/collection/collections.scrbl")]
-which provides a generic interface for all racket collections. It is better than this one.
+Now axe depends on @racket[data/collection], you are safely to use it instead.
 
 @racket[axe] provide some wrappers over the dictionary related functions
 provided by @racket[racket/dict].
