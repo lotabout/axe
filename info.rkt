@@ -1,7 +1,7 @@
 #lang info
 (define collection "axe")
 (define deps '("base"
-               "data/collection"
+               "collections"
                "rackunit-lib"))
 (define build-deps '("scribble-lib" "racket-doc" "scribble-code-examples" "scribble-doc"))
 (define scribblings '(("scribblings/axe.scrbl" ())))

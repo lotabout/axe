@@ -1,5 +1,7 @@
 #lang axe
 
+(require (only-in racket map))
+
 ;;; Test all the overall language which could not be test otherwise
 ;;; Mainly for the reader and #%app.
 ;;;
